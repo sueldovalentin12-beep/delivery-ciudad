@@ -3,30 +3,41 @@
 :root {
   color-scheme: light;
   --background: #ffffff;
-  --foreground: #18181b;
-  --muted: #71717a;
-  --surface: #fafafa;
-  --border: #e4e4e7;
-  --brand: #ff5722;
+  --surface: #f6f7f5;
+  --foreground: #1e2a38;
+  --muted: #8a9099;
+  --border: #ecedef;
+  --brand: #56c232;
+  --brand-dark: #3f9a20;
+  --brand-soft: #edf9e7;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
-  --color-surface: var(--surface);
   --color-line: var(--border);
   --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-soft: var(--brand-soft);
   --font-sans: var(--font-geist-sans);
 }
 
 body {
-  background: var(--background);
+  background: var(--surface);
   color: var(--foreground);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Evita que iOS agrande el texto al girar el teléfono. */
 html {
   -webkit-text-size-adjust: 100%;
+}
+
+/* Oculta la barra de scroll en los carruseles horizontales. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

@@ -10,7 +10,7 @@ const geistSans = Geist({
 
 export const metadata: Metadata = {
   title: {
-    default: `${appConfig.name} · Delivery en ${appConfig.city}`,
+    default: `${appConfig.name} · ${appConfig.city}`,
     template: `%s · ${appConfig.name}`,
   },
   description: `${appConfig.tagline}. Comida a domicilio en ${appConfig.city}, con envío en ${appConfig.deliveryTime}.`,
