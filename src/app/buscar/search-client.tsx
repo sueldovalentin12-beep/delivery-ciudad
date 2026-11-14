@@ -42,7 +42,7 @@ export function SearchClient() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Buscar comercio o comida"
-          className="w-full bg-transparent text-[13.5px] text-foreground outline-none placeholder:text-muted"
+          className="w-full bg-transparent text-[16px] text-foreground outline-none placeholder:text-muted"
         />
       </label>
 

@@ -32,6 +32,26 @@ body {
 
 html {
   -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+/* Controles: respuesta inmediata al toque y sin seleccionar el texto al mantener presionado.
+ * El texto de contenido (pedidos, mensajes) sigue siendo seleccionable. */
+button,
+a,
+[role="button"] {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* 16px es el mínimo para que el celular no acerque la página al tocar un campo. */
+input,
+textarea,
+select {
+  font-size: 16px;
 }
 
 /* Oculta la barra de scroll en los carruseles horizontales. */

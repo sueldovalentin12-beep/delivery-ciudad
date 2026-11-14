@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/lib/cart";
+import { ServiceWorkerRegister } from "@/components/sw-register";
 import { appConfig } from "@/lib/config";
 
 const geistSans = Geist({
@@ -16,13 +17,17 @@ export const metadata: Metadata = {
   },
   description: `${appConfig.tagline}. Comida a domicilio en ${appConfig.city}, con envío en ${appConfig.deliveryTime}.`,
   applicationName: appConfig.name,
+  appleWebApp: {
+    title: appConfig.name,
+    statusBarStyle: "default",
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: "#56c232",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -30,6 +35,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="es-AR" className={`${geistSans.variable} h-full antialiased`}>
       <body className="min-h-full">
         <CartProvider>{children}</CartProvider>
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

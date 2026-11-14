@@ -12,7 +12,7 @@ import { categories, heroSlides, merchants } from "@/lib/demo-data";
 export default function Home() {
   return (
     <div className="mx-auto min-h-dvh w-full max-w-md bg-white pb-20">
-      <header className="sticky top-0 z-20 bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-20 bg-white/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <button type="button" className="flex min-w-0 items-center gap-2 text-left">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-soft text-brand-dark">

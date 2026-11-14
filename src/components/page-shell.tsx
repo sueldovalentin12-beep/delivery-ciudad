@@ -14,7 +14,7 @@ export function PageShell({
 }) {
   return (
     <div className="mx-auto min-h-dvh w-full max-w-md bg-white pb-20">
-      <header className="sticky top-0 z-20 border-b border-line bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-line bg-white/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="flex h-14 items-center gap-2 px-3">
           {backHref ? (
             <Link
