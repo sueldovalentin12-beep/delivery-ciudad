@@ -1,16 +1,12 @@
-import { EmptyState } from "@/components/empty-state";
 import { PageShell } from "@/components/page-shell";
+import { CartView } from "./cart-view";
 
-export const metadata = { title: "Carrito" };
+export const metadata = { title: "Tu carrito" };
 
 export default function CartPage() {
   return (
     <PageShell title="Tu carrito" backHref="/">
-      <EmptyState
-        emoji="🛒"
-        title="Tu carrito está vacío"
-        description="Elegí un comercio y agregá algo rico. En la próxima etapa va a poder confirmar el pedido desde acá."
-      />
+      <CartView />
     </PageShell>
   );
 }

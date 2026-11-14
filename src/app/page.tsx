@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { BottomNav } from "@/components/bottom-nav";
+import { CartBadge } from "@/components/cart-badge";
 import { CategoryTile } from "@/components/category-tile";
 import { HeroCarousel } from "@/components/hero-carousel";
-import { CartIcon, ChevronRightIcon, PinIcon } from "@/components/icons";
+import { ChevronRightIcon, PinIcon } from "@/components/icons";
 import { SectionHeader } from "@/components/section-header";
 import { VendorCard } from "@/components/vendor-card";
 import { VendorRow } from "@/components/vendor-row";
@@ -29,13 +29,7 @@ export default function Home() {
             </span>
           </button>
 
-          <Link
-            href="/carrito"
-            aria-label="Ver carrito"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-line text-foreground"
-          >
-            <CartIcon />
-          </Link>
+          <CartBadge />
         </div>
       </header>
 

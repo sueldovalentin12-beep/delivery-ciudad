@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
+import { CartProvider } from "@/lib/cart";
 import { appConfig } from "@/lib/config";
 
 const geistSans = Geist({
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#ff5722",
+  themeColor: "#56c232",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -27,7 +28,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es-AR" className={`${geistSans.variable} h-full antialiased`}>
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <CartProvider>{children}</CartProvider>
+      </body>
     </html>
   );
 }

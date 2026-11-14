@@ -9,6 +9,8 @@ export const appConfig = {
   /** Número de WhatsApp de atención, con código de país y sin espacios ni guiones. */
   whatsapp: "",
   deliveryFee: "$700",
+  /** El mismo envío, pero como número, para poder sumarlo en el carrito. */
+  deliveryFeeValue: 700,
   deliveryTime: "30-40 min",
   minOrder: "$3.500",
 } as const;

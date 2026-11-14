@@ -3,10 +3,11 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { BottomNav } from "@/components/bottom-nav";
+import { CartButton } from "@/components/cart-button";
+import { CartSummaryBar } from "@/components/cart-summary-bar";
 import {
   ChevronLeftIcon,
   ClockIcon,
-  PlusIcon,
   ScooterIcon,
   StarIcon,
 } from "@/components/icons";
@@ -113,13 +114,14 @@ async function MerchantContent({ params }: { params: Promise<{ slug: string }> }
                       {formatPrice(item.price)}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    aria-label={`Agregar ${item.name}`}
-                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-soft text-brand-dark"
-                  >
-                    <PlusIcon />
-                  </button>
+                  <CartButton
+                    merchantSlug={merchant.slug}
+                    merchantName={merchant.name}
+                    itemId={item.id}
+                    name={item.name}
+                    price={item.price}
+                    emoji={item.emoji}
+                  />
                 </li>
               ))}
             </ul>
@@ -131,6 +133,7 @@ async function MerchantContent({ params }: { params: Promise<{ slug: string }> }
         Los precios incluyen impuestos. El envío se suma al finalizar.
       </p>
 
+      <CartSummaryBar />
       <BottomNav />
     </div>
   );

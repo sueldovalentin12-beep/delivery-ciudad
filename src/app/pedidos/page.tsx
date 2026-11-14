@@ -1,16 +1,12 @@
-import { EmptyState } from "@/components/empty-state";
 import { PageShell } from "@/components/page-shell";
+import { OrdersView } from "./orders-view";
 
-export const metadata = { title: "Pedidos" };
+export const metadata = { title: "Mis pedidos" };
 
 export default function OrdersPage() {
   return (
     <PageShell title="Mis pedidos">
-      <EmptyState
-        emoji="🧾"
-        title="Todavía no hiciste pedidos"
-        description="Cuando pidas algo, acá vas a poder seguir el estado en tiempo real."
-      />
+      <OrdersView />
     </PageShell>
   );
 }
