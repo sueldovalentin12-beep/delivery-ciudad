@@ -17,6 +17,7 @@ import {
 import { formatPrice } from "@/lib/demo-data";
 import { saveOrder, type Order } from "@/lib/orders";
 import { merchantWhatsAppUrl } from "@/lib/whatsapp";
+import { markOrderServer, markOrderStatus } from "@/lib/orders";
 
 export function CartView() {
   const { items, ready, subtotal, count, changeQty, clear } = useCart();
@@ -110,6 +111,42 @@ export function CartView() {
     });
     clear();
     setConfirmed(order);
+    void syncOrder(order);
+  }
+
+  /** Manda el pedido al servidor para que lo vean el dueño y el repartidor. */
+  async function syncOrder(order: Order) {
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: order.id,
+          items: order.items.map((item) => ({
+            name: item.name,
+            qty: item.qty,
+            price: item.price,
+            emoji: item.emoji,
+            merchantName: item.merchantName,
+            merchantSlug: item.merchantSlug,
+          })),
+          address: order.address ?? null,
+          subtotal: order.subtotal,
+          deliveryFee: order.deliveryFee,
+          total: order.total,
+        }),
+      });
+      if (!response.ok) return;
+      const data = (await response.json()) as { id?: string };
+      const serverId = data.id ?? order.id;
+      markOrderServer(order.id, serverId);
+      markOrderStatus(order.id, "recibido");
+      setConfirmed((current) =>
+        current && current.id === order.id ? { ...current, serverId } : current,
+      );
+    } catch {
+      // Sin internet: el pedido queda en el celular y se puede avisar por WhatsApp igual.
+    }
   }
 
   return (
@@ -390,6 +427,11 @@ function OrderConfirmation({ order }: { order: Order }) {
             todavía no le llega al comercio.
           </p>
         )}
+        {order.serverId ? (
+          <p className="text-[11.5px] font-semibold text-brand-dark">
+            ✅ El comercio ya ve tu pedido en su panel.
+          </p>
+        ) : null}
         <Link
           href="/pedidos"
           className="block rounded-2xl border border-line py-3 text-[14px] font-semibold text-foreground"
