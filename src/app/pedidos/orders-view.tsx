@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { EmptyState } from "@/components/empty-state";
+import { addressLabel } from "@/lib/address";
 import { formatPrice } from "@/lib/demo-data";
 import { readOrders, type Order } from "@/lib/orders";
 
@@ -58,6 +59,11 @@ export function OrdersView() {
           <p className="mt-0.5 text-[11.5px] text-muted">
             {formatDate(order.createdAt)}
           </p>
+          {order.address ? (
+            <p className="mt-1 text-[12px] text-muted">
+              📍 {addressLabel(order.address)}
+            </p>
+          ) : null}
           <ul className="mt-2 space-y-1 text-[12px]">
             {order.items.slice(0, 3).map((item) => (
               <li key={item.key} className="flex justify-between gap-3">

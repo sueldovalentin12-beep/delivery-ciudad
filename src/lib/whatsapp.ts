@@ -1,4 +1,5 @@
 import { appConfig } from "@/lib/config";
+import { addressLabel, mapsUrl } from "@/lib/address";
 import { formatPrice } from "@/lib/demo-data";
 import type { Order } from "@/lib/orders";
 
@@ -26,14 +27,25 @@ export function buildOrderMessage(order: Order): string {
     )
     .join("\n\n");
 
-  return [
+  const lines = [
     `🛵 *Pedido ${appConfig.name}* · Nº ${order.id}`,
     "",
     groups,
+  ];
+
+  if (order.address) {
+    lines.push("", `📍 *Entrega:* ${addressLabel(order.address)}`);
+    const url = mapsUrl(order.address);
+    if (url) lines.push(url);
+  }
+
+  lines.push(
     "",
     `*Envío:* ${formatPrice(order.deliveryFee)}`,
     `*Total:* ${formatPrice(order.total)}`,
-  ].join("\n");
+  );
+
+  return lines.join("\n");
 }
 
 /** Link de WhatsApp para avisar al comercio. null si no hay número configurado. */

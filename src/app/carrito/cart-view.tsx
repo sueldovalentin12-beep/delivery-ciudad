@@ -1,11 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { QtyStepper } from "@/components/qty-stepper";
 import { useCart } from "@/lib/cart";
 import { appConfig } from "@/lib/config";
+import {
+  addressLabel,
+  mapPreviewUrl,
+  mapsUrl,
+  readAddress,
+  saveAddress,
+  type DeliveryAddress,
+} from "@/lib/address";
 import { formatPrice } from "@/lib/demo-data";
 import { saveOrder, type Order } from "@/lib/orders";
 import { merchantWhatsAppUrl } from "@/lib/whatsapp";
@@ -13,6 +21,39 @@ import { merchantWhatsAppUrl } from "@/lib/whatsapp";
 export function CartView() {
   const { items, ready, subtotal, count, changeQty, clear } = useCart();
   const [confirmed, setConfirmed] = useState<Order | null>(null);
+  const [address, setAddress] = useState<DeliveryAddress | null>(null);
+  const [geoState, setGeoState] = useState<"idle" | "loading" | "denied">("idle");
+
+  // Al abrir el carrito, recuperamos la dirección guardada en el celular.
+  useEffect(() => {
+    const saved = readAddress();
+    if (saved) setAddress(saved);
+  }, []);
+
+  // Cada cambio de dirección se guarda, para el próximo pedido.
+  useEffect(() => {
+    if (address && address.street.trim()) saveAddress(address);
+  }, [address]);
+
+  function useMyLocation() {
+    if (!navigator.geolocation) {
+      setGeoState("denied");
+      return;
+    }
+    setGeoState("loading");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setAddress((current) => ({
+          ...(current ?? { street: "" }),
+          lat: Number(position.coords.latitude.toFixed(5)),
+          lng: Number(position.coords.longitude.toFixed(5)),
+        }));
+        setGeoState("idle");
+      },
+      () => setGeoState("denied"),
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }
 
   // Todavía estamos leyendo el carrito guardado en el celular.
   if (!ready) {
@@ -52,9 +93,21 @@ export function CartView() {
 
   const deliveryFee = appConfig.deliveryFeeValue;
   const total = subtotal + deliveryFee;
+  const hasStreet = (address?.street.trim().length ?? 0) >= 3;
 
   function confirmOrder() {
-    const order = saveOrder({ items, subtotal, deliveryFee, total });
+    if (!address || !hasStreet) return;
+    const order = saveOrder({
+      items,
+      subtotal,
+      deliveryFee,
+      total,
+      address: {
+        ...address,
+        street: address.street.trim(),
+        reference: address.reference?.trim() || undefined,
+      },
+    });
     clear();
     setConfirmed(order);
   }
@@ -94,6 +147,13 @@ export function CartView() {
         ))}
       </ul>
 
+      <AddressCard
+        address={address}
+        onChange={setAddress}
+        geoState={geoState}
+        onUseLocation={useMyLocation}
+      />
+
       <section className="space-y-1.5 rounded-2xl border border-line bg-surface p-3.5 text-[13px]">
         <div className="flex justify-between">
           <span className="text-muted">Subtotal</span>
@@ -117,10 +177,16 @@ export function CartView() {
         <button
           type="button"
           onClick={confirmOrder}
-          className="w-full rounded-2xl bg-brand py-3.5 text-[14.5px] font-bold text-white transition active:scale-[0.99]"
+          disabled={!hasStreet}
+          className="w-full rounded-2xl bg-brand py-3.5 text-[14.5px] font-bold text-white transition active:scale-[0.99] disabled:opacity-40"
         >
           Confirmar pedido · {formatPrice(total)}
         </button>
+        {!hasStreet ? (
+          <p className="text-center text-[11.5px] text-muted">
+            Escribí la calle y número para confirmar el pedido.
+          </p>
+        ) : null}
         <button
           type="button"
           onClick={clear}
@@ -137,8 +203,116 @@ export function CartView() {
   );
 }
 
+function AddressCard({
+  address,
+  onChange,
+  geoState,
+  onUseLocation,
+}: {
+  address: DeliveryAddress | null;
+  onChange: (address: DeliveryAddress) => void;
+  geoState: "idle" | "loading" | "denied";
+  onUseLocation: () => void;
+}) {
+  const hasCoords = typeof address?.lat === "number" && typeof address?.lng === "number";
+  const preview = address ? mapPreviewUrl(address) : null;
+
+  return (
+    <section className="space-y-3 rounded-2xl border border-line bg-white p-3.5">
+      <h2 className="text-[13.5px] font-bold text-foreground">
+        ¿Dónde lo entregamos?
+      </h2>
+
+      <label className="block">
+        <span className="mb-1 block text-[11.5px] font-semibold text-muted">
+          Calle y número
+        </span>
+        <input
+          type="text"
+          value={address?.street ?? ""}
+          onChange={(event) =>
+            onChange({
+              ...(address ?? { street: "" }),
+              street: event.target.value,
+            })
+          }
+          placeholder="Ej: Urquiza 1234"
+          enterKeyHint="done"
+          className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-[16px] text-foreground outline-none focus:border-brand"
+        />
+      </label>
+
+      <label className="block">
+        <span className="mb-1 block text-[11.5px] font-semibold text-muted">
+          Referencia (opcional)
+        </span>
+        <input
+          type="text"
+          value={address?.reference ?? ""}
+          onChange={(event) =>
+            onChange({
+              ...(address ?? { street: "" }),
+              reference: event.target.value,
+            })
+          }
+          placeholder="Ej: portón verde, entre calles"
+          enterKeyHint="done"
+          className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-[16px] text-foreground outline-none focus:border-brand"
+        />
+      </label>
+
+      <div>
+        <button
+          type="button"
+          onClick={onUseLocation}
+          disabled={geoState === "loading"}
+          className="w-full rounded-xl border border-brand bg-brand-soft py-2.5 text-[13px] font-semibold text-brand-dark transition active:scale-[0.99] disabled:opacity-50"
+        >
+          {geoState === "loading"
+            ? "Buscando tu ubicación…"
+            : hasCoords
+              ? "📍 Actualizar mi ubicación"
+              : "📍 Usar mi ubicación actual"}
+        </button>
+        {geoState === "denied" ? (
+          <p className="mt-1.5 text-[11.5px] text-muted">
+            No pudimos usar tu ubicación: escribí la dirección igual y listo.
+          </p>
+        ) : null}
+      </div>
+
+      {preview ? (
+        <div className="space-y-1.5">
+          <iframe
+            title="Ubicación de entrega en el mapa"
+            src={preview}
+            loading="lazy"
+            className="h-40 w-full rounded-xl border border-line"
+          />
+          <p className="flex items-center justify-between text-[11.5px] text-muted">
+            <span>📍 {addressLabel(address as DeliveryAddress)}</span>
+            <button
+              type="button"
+              onClick={() =>
+                onChange({
+                  street: address?.street ?? "",
+                  reference: address?.reference,
+                })
+              }
+              className="font-semibold text-brand-dark"
+            >
+              Quitar ubicación
+            </button>
+          </p>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function OrderConfirmation({ order }: { order: Order }) {
   const whatsappUrl = merchantWhatsAppUrl(order);
+  const mapUrl = order.address ? mapsUrl(order.address) : null;
 
   return (
     <div className="pb-4 text-center">
@@ -172,6 +346,27 @@ function OrderConfirmation({ order }: { order: Order }) {
           <span className="tabular-nums">{formatPrice(order.total)}</span>
         </li>
       </ul>
+
+      {order.address ? (
+        <div className="mt-3 text-[12.5px]">
+          <p className="text-muted">
+            📍 Entrega:{" "}
+            <span className="font-semibold text-foreground">
+              {addressLabel(order.address)}
+            </span>
+          </p>
+          {mapUrl ? (
+            <a
+              href={mapUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-0.5 inline-block font-semibold text-brand-dark"
+            >
+              Ver en el mapa
+            </a>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mt-5 space-y-2">
         {whatsappUrl ? (

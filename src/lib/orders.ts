@@ -1,5 +1,6 @@
 "use client";
 
+import type { DeliveryAddress } from "@/lib/address";
 import type { CartItem } from "@/lib/cart";
 
 /**
@@ -15,6 +16,7 @@ export type Order = {
   subtotal: number;
   deliveryFee: number;
   total: number;
+  address?: DeliveryAddress;
 };
 
 const STORAGE_KEY = "altoque.orders.v1";
