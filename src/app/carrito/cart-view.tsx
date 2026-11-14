@@ -8,6 +8,7 @@ import { useCart } from "@/lib/cart";
 import { appConfig } from "@/lib/config";
 import { formatPrice } from "@/lib/demo-data";
 import { saveOrder, type Order } from "@/lib/orders";
+import { merchantWhatsAppUrl } from "@/lib/whatsapp";
 
 export function CartView() {
   const { items, ready, subtotal, count, changeQty, clear } = useCart();
@@ -137,6 +138,8 @@ export function CartView() {
 }
 
 function OrderConfirmation({ order }: { order: Order }) {
+  const whatsappUrl = merchantWhatsAppUrl(order);
+
   return (
     <div className="pb-4 text-center">
       <span
@@ -170,21 +173,37 @@ function OrderConfirmation({ order }: { order: Order }) {
         </li>
       </ul>
 
-      <p className="mt-4 text-[11.5px] leading-relaxed text-muted">
-        Esto es una prueba: el pedido quedó guardado en tu celular y todavía no
-        le llega al comercio.
-      </p>
-
       <div className="mt-5 space-y-2">
+        {whatsappUrl ? (
+          <>
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block rounded-2xl bg-brand py-3 text-[14px] font-bold text-white"
+            >
+              Avisar al comercio por WhatsApp
+            </a>
+            <p className="text-[11.5px] leading-relaxed text-muted">
+              Se abre WhatsApp con el pedido ya escrito: solo falta que toques
+              el botón de enviar.
+            </p>
+          </>
+        ) : (
+          <p className="text-[11.5px] leading-relaxed text-muted">
+            Esto es una prueba: el pedido quedó guardado en tu celular y
+            todavía no le llega al comercio.
+          </p>
+        )}
         <Link
           href="/pedidos"
-          className="block rounded-2xl bg-brand py-3 text-[14px] font-bold text-white"
+          className="block rounded-2xl border border-line py-3 text-[14px] font-semibold text-foreground"
         >
           Ver mis pedidos
         </Link>
         <Link
           href="/"
-          className="block rounded-2xl border border-line py-3 text-[14px] font-semibold text-foreground"
+          className="block rounded-2xl py-2 text-[12px] font-medium text-muted"
         >
           Seguir comprando
         </Link>

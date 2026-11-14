@@ -7,7 +7,7 @@ export const appConfig = {
   city: "Villaguay",
   tagline: "Pedí a domicilio en Villaguay",
   /** Número de WhatsApp de atención, con código de país y sin espacios ni guiones. */
-  whatsapp: "",
+  whatsapp: "5493455485277",
   deliveryFee: "$700",
   /** El mismo envío, pero como número, para poder sumarlo en el carrito. */
   deliveryFeeValue: 700,
