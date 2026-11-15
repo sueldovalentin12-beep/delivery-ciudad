@@ -44,16 +44,29 @@ export function readOrders(): Order[] {
   }
 }
 
+/** Genera un número de pedido único (no se repite entre pedidos viejos). */
+function generateOrderId(existing: Order[]): string {
+  // Fecha en base 36 + sufijo al azar: prácticamente imposible que se repita.
+  let id = "";
+  do {
+    id =
+      "AT-" +
+      Date.now().toString(36).toUpperCase() +
+      String(Math.floor(Math.random() * 90) + 10);
+  } while (existing.some((order) => order.id === id));
+  return id;
+}
+
 /** Guarda el pedido y devuelve el número de pedido generado. */
 export function saveOrder(order: Omit<Order, "id" | "createdAt">): Order {
+  const previous = readOrders();
   const full: Order = {
     ...order,
-    id: "AT-" + String(Math.floor(1000 + Math.random() * 9000)),
+    id: generateOrderId(previous),
     createdAt: Date.now(),
   };
 
   try {
-    const previous = readOrders();
     window.localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify([full, ...previous].slice(0, 20)),
@@ -86,4 +99,13 @@ export function markOrderServer(id: string, serverId: string): void {
 /** Anota el estado del pedido (Recibido, En camino, Entregado…). */
 export function markOrderStatus(id: string, status: OrderStatus): void {
   updateOrder(id, { status });
+}
+
+/** Borra todo el historial de pedidos guardado en el celular. */
+export function clearOrders(): void {
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Nada que limpiar.
+  }
 }

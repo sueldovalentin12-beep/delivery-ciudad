@@ -1,4 +1,5 @@
 import { PageShell } from "@/components/page-shell";
+import { ClearOrdersButton } from "./clear-orders-button";
 
 export const metadata = { title: "Perfil" };
 
@@ -34,6 +35,7 @@ export default function ProfilePage() {
             cliente. Pide tu PIN.
           </p>
         </a>
+        <ClearOrdersButton />
       </div>
     </PageShell>
   );

@@ -37,6 +37,8 @@ export function RepartidorClient() {
   /** Pedido que está entregando ahora, con el GPS compartido. */
   const [activeId, setActiveId] = useState<string | null>(null);
   const [geoState, setGeoState] = useState<"off" | "on" | "error">("off");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const watchRef = useRef<number | null>(null);
   const activeIdRef = useRef<string | null>(null);
 
@@ -102,6 +104,8 @@ export function RepartidorClient() {
   }
 
   async function changeStatus(order: PanelOrder, next: OrderStatus) {
+    setBusyId(order.id);
+    setActionError(null);
     try {
       const response = await fetch(`/api/orders/${encodeURIComponent(order.id)}/status`, {
         method: "POST",
@@ -111,9 +115,26 @@ export function RepartidorClient() {
         },
         body: JSON.stringify({ status: next }),
       });
-      if (response.ok) void loadOrders(pin ?? "");
+      if (response.ok) {
+        void loadOrders(pin ?? "");
+      } else {
+        const data = (await response.json().catch(() => ({}))) as { error?: string };
+        if (response.status === 401) {
+          setActionError("El PIN no es correcto: volvé a entrar con tu PIN.");
+        } else if (response.status === 404) {
+          setActionError(`El pedido ${order.id} no se encontró en el servidor.`);
+        } else if (response.status === 503) {
+          setActionError(data.error ?? "Falta conectar la base de datos.");
+        } else {
+          setActionError(
+            data.error ?? `No se pudo cambiar el estado (error ${response.status}).`,
+          );
+        }
+      }
     } catch {
-      // El refresco de 5 segundos lo va a reintentar.
+      setActionError("Sin conexión: revisá tu internet y probá de nuevo.");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -256,11 +277,17 @@ export function RepartidorClient() {
             key={order.id}
             order={order}
             active={order.id === activeId}
+            busy={order.id === busyId}
             onStart={() => startDelivery(order)}
             onFinish={() => finishDelivery(order)}
           />
         ))}
       </ul>
+      {actionError ? (
+        <p className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-3.5 text-[12.5px] font-semibold text-red-700">
+          ⚠️ {actionError}
+        </p>
+      ) : null}
     </PageShell>
   );
 }
@@ -268,11 +295,13 @@ export function RepartidorClient() {
 function OrderCard({
   order,
   active,
+  busy,
   onStart,
   onFinish,
 }: {
   order: PanelOrder;
   active: boolean;
+  busy: boolean;
   onStart: () => void;
   onFinish: () => void;
 }) {
@@ -332,15 +361,16 @@ function OrderCard({
         <button
           type="button"
           onClick={onStart}
-          disabled={active}
+          disabled={active || busy}
           className="flex-1 rounded-xl bg-brand py-2.5 text-[13px] font-bold text-white transition active:scale-[0.99] disabled:opacity-50"
         >
-          {active ? "🛵 En camino…" : "🛵 Salí en camino"}
+          {busy ? "Guardando…" : active ? "🛵 En camino…" : "🛵 Salí en camino"}
         </button>
         <button
           type="button"
           onClick={onFinish}
-          className="flex-1 rounded-xl border border-brand bg-brand-soft py-2.5 text-[13px] font-bold text-brand-dark transition active:scale-[0.99]"
+          disabled={busy}
+          className="flex-1 rounded-xl border border-brand bg-brand-soft py-2.5 text-[13px] font-bold text-brand-dark transition active:scale-[0.99] disabled:opacity-50"
         >
           ✅ Entregado
         </button>

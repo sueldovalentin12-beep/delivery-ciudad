@@ -43,6 +43,10 @@ export function DuenoClient() {
   const [pinError, setPinError] = useState<string | null>(null);
   const [orders, setOrders] = useState<PanelOrder[] | null>(null);
   const [dbError, setDbError] = useState<string | null>(null);
+  /** Pedido cuyo cambio de estado está en vuelo (para deshabilitar su botón). */
+  const [busyId, setBusyId] = useState<string | null>(null);
+  /** Mensaje de error del último cambio de estado que falló. */
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Recupera el PIN de la sesión anterior en el mismo navegador.
   useEffect(() => {
@@ -101,6 +105,8 @@ export function DuenoClient() {
   }
 
   async function changeStatus(order: PanelOrder, next: OrderStatus) {
+    setBusyId(order.id);
+    setActionError(null);
     try {
       const response = await fetch(`/api/orders/${encodeURIComponent(order.id)}/status`, {
         method: "POST",
@@ -110,9 +116,27 @@ export function DuenoClient() {
         },
         body: JSON.stringify({ status: next }),
       });
-      if (response.ok) void loadOrders(pin ?? "");
+      if (response.ok) {
+        void loadOrders(pin ?? "");
+      } else {
+        // Aviso visible: nunca más un botón que "no hace nada".
+        const data = (await response.json().catch(() => ({}))) as { error?: string };
+        if (response.status === 401) {
+          setActionError("El PIN no es correcto: volvé a entrar con el PIN del comercio.");
+        } else if (response.status === 404) {
+          setActionError(`El pedido ${order.id} no se encontró en el servidor.`);
+        } else if (response.status === 503) {
+          setActionError(data.error ?? "Falta conectar la base de datos.");
+        } else {
+          setActionError(
+            data.error ?? `No se pudo cambiar el estado (error ${response.status}).`,
+          );
+        }
+      }
     } catch {
-      // El refresco de 5 segundos lo va a reintentar.
+      setActionError("Sin conexión: revisá tu internet y probá de nuevo.");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -174,6 +198,7 @@ export function DuenoClient() {
           <OrderCard
             key={order.id}
             order={order}
+            busy={order.id === busyId}
             onAdvance={() => {
               const action = NEXT_ACTION[order.status];
               if (action) void changeStatus(order, action.next);
@@ -181,15 +206,22 @@ export function DuenoClient() {
           />
         ))}
       </ul>
+      {actionError ? (
+        <p className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-3.5 text-[12.5px] font-semibold text-red-700">
+          ⚠️ {actionError}
+        </p>
+      ) : null}
     </PageShell>
   );
 }
 
 function OrderCard({
   order,
+  busy,
   onAdvance,
 }: {
   order: PanelOrder;
+  busy: boolean;
   onAdvance: () => void;
 }) {
   const mapUrl = order.address ? mapsUrl(order.address) : null;
@@ -258,9 +290,10 @@ function OrderCard({
         <button
           type="button"
           onClick={onAdvance}
-          className="w-full rounded-xl bg-brand py-2.5 text-[13px] font-bold text-white transition active:scale-[0.99]"
+          disabled={busy}
+          className="w-full rounded-xl bg-brand py-2.5 text-[13px] font-bold text-white transition active:scale-[0.99] disabled:opacity-50"
         >
-          {action.label}
+          {busy ? "Guardando…" : action.label}
         </button>
       ) : null}
     </li>

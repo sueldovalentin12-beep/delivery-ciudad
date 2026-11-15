@@ -22,6 +22,8 @@ import { markOrderServer, markOrderStatus } from "@/lib/orders";
 export function CartView() {
   const { items, ready, subtotal, count, changeQty, clear } = useCart();
   const [confirmed, setConfirmed] = useState<Order | null>(null);
+  /** Aviso si el pedido no se pudo registrar en el servidor. */
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [address, setAddress] = useState<DeliveryAddress | null>(null);
   const [geoState, setGeoState] = useState<"idle" | "loading" | "denied">("idle");
 
@@ -71,7 +73,7 @@ export function CartView() {
   }
 
   if (confirmed) {
-    return <OrderConfirmation order={confirmed} />;
+    return <OrderConfirmation order={confirmed} syncError={syncError} />;
   }
 
   if (count === 0) {
@@ -136,7 +138,14 @@ export function CartView() {
           total: order.total,
         }),
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        setSyncError(
+          response.status === 503
+            ? "El comercio todavía no tiene su panel conectado: avisale por WhatsApp igual."
+            : "No se pudo registrar el pedido en el panel del comercio. Avisale por WhatsApp igual.",
+        );
+        return;
+      }
       const data = (await response.json()) as { id?: string };
       const serverId = data.id ?? order.id;
       markOrderServer(order.id, serverId);
@@ -145,7 +154,9 @@ export function CartView() {
         current && current.id === order.id ? { ...current, serverId } : current,
       );
     } catch {
-      // Sin internet: el pedido queda en el celular y se puede avisar por WhatsApp igual.
+      setSyncError(
+        "Sin internet: el pedido quedó en tu celular y se puede avisar por WhatsApp igual.",
+      );
     }
   }
 
@@ -347,7 +358,13 @@ function AddressCard({
   );
 }
 
-function OrderConfirmation({ order }: { order: Order }) {
+function OrderConfirmation({
+  order,
+  syncError,
+}: {
+  order: Order;
+  syncError: string | null;
+}) {
   const whatsappUrl = merchantWhatsAppUrl(order);
   const mapUrl = order.address ? mapsUrl(order.address) : null;
 
@@ -431,7 +448,15 @@ function OrderConfirmation({ order }: { order: Order }) {
           <p className="text-[11.5px] font-semibold text-brand-dark">
             ✅ El comercio ya ve tu pedido en su panel.
           </p>
-        ) : null}
+        ) : syncError ? (
+          <p className="rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11.5px] font-semibold text-amber-800">
+            ⚠️ {syncError}
+          </p>
+        ) : (
+          <p className="text-[11.5px] text-muted">
+            Enviando tu pedido al panel del comercio…
+          </p>
+        )}
         <Link
           href="/pedidos"
           className="block rounded-2xl border border-line py-3 text-[14px] font-semibold text-foreground"
