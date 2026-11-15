@@ -3,7 +3,7 @@
  * - Páginas: primero red; si no hay red, muestra la última versión guardada.
  * - Archivos (íconos, estilos, scripts): primero lo guardado, si no está, descarga.
  */
-const VERSION = "altoque-v1";
+const VERSION = "altoque-v2";
 const CORE_CACHE = `${VERSION}-paginas`;
 const ASSET_CACHE = `${VERSION}-archivos`;
 
@@ -37,6 +37,10 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+
+  // Datos en vivo (el panel, el seguimiento, los estados): SIEMPRE a la red.
+  // Nunca se guardan en el cache, si no el panel mostraria una foto vieja.
+  if (url.pathname.startsWith("/api/")) return;
 
   // Páginas: red primero, guardado como respaldo.
   if (request.mode === "navigate") {
