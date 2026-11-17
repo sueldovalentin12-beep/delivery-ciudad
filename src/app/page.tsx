@@ -1,39 +1,54 @@
-import { BottomNav } from "@/components/bottom-nav";
+import Link from "next/link";
+import { ActiveOrderBanner } from "@/components/active-order-banner";
 import { CartBadge } from "@/components/cart-badge";
 import { CategoryTile } from "@/components/category-tile";
+import { PageTransition } from "@/components/page-transition";
 import { HeroCarousel } from "@/components/hero-carousel";
-import { ChevronRightIcon, PinIcon } from "@/components/icons";
+import { ChevronRightIcon, SearchIcon } from "@/components/icons";
+import { Logo } from "@/components/logo";
+import { MotoIcon } from "@/components/moto-icon";
+import { OpenNowList } from "@/components/open-now-list";
 import { SectionHeader } from "@/components/section-header";
 import { VendorCard } from "@/components/vendor-card";
-import { VendorRow } from "@/components/vendor-row";
 import { appConfig } from "@/lib/config";
-import { categories, heroSlides, merchants } from "@/lib/demo-data";
+import {
+  categories,
+  formatPrice,
+  heroSlides,
+  merchants,
+} from "@/lib/demo-data";
+
+/** El envío más barato del catálogo, para el "desde" del pie. */
+const minDeliveryFee = Math.min(...merchants.map((m) => m.deliveryFeeValue));
 
 export default function Home() {
   return (
+    <PageTransition>
     <div className="mx-auto min-h-dvh w-full max-w-md bg-white pb-20">
-      <header className="sticky top-0 z-20 bg-white/95 pt-[env(safe-area-inset-top)] backdrop-blur">
+      <header
+        style={{ viewTransitionName: "page-header" }}
+        className="sticky top-0 z-20 bg-white/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <button type="button" className="flex min-w-0 items-center gap-2 text-left">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-soft text-brand-dark">
-              <PinIcon className="h-[18px] w-[18px]" />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-[10.5px] font-medium uppercase tracking-wide text-muted">
-                Entregar en
-              </span>
-              <span className="flex items-center gap-0.5 truncate text-[13.5px] font-semibold text-foreground">
-                {appConfig.city}
-                <ChevronRightIcon className="h-3.5 w-3.5 rotate-90 text-muted" />
-              </span>
-            </span>
-          </button>
+          <Logo />
 
           <CartBadge />
         </div>
       </header>
 
+      <ActiveOrderBanner />
+
       <main className="space-y-6 pt-1">
+        {/* Parece un campo de texto, pero es un link: la búsqueda de verdad vive en /buscar. */}
+        <div className="px-4">
+          <Link
+            href="/buscar"
+            className="flex items-center gap-2.5 rounded-2xl border border-line bg-surface px-3.5 py-3 text-[14px] text-muted"
+          >
+            <SearchIcon className="h-4.5 w-4.5 shrink-0" />
+            ¿Qué querés comer hoy?
+          </Link>
+        </div>
+
         <HeroCarousel slides={heroSlides} />
 
         <section className="-mx-0">
@@ -59,7 +74,10 @@ export default function Home() {
         </section>
 
         <section className="px-4">
-          <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3.5">
+          <Link
+            href="/sumate"
+            className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3.5"
+          >
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white text-xl">
               🏪
             </span>
@@ -72,28 +90,34 @@ export default function Home() {
               </p>
             </div>
             <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted" />
-          </div>
+          </Link>
         </section>
 
         <section>
-          <SectionHeader title="Abierto ahora" />
-          <ul className="mt-3 space-y-2.5 px-4">
-            {merchants.slice(0, 3).map((merchant) => (
-              <li key={merchant.id}>
-                  <VendorRow merchant={merchant} />
-              </li>
-            ))}
-          </ul>
+          <SectionHeader title="Abierto ahora" href="/comercios" />
+          <OpenNowList merchants={merchants} />
         </section>
       </main>
 
-      <footer className="mt-8 px-4 pb-6 text-center text-[11px] leading-relaxed text-muted">
-        {appConfig.name} · {appConfig.city}
-        <br />
-        Envío desde {appConfig.deliveryFee} · {appConfig.deliveryTime}
+      <footer className="mt-10 border-t border-line px-4 pb-6 pt-6 text-center">
+        <div className="flex justify-center">
+          <Logo />
+        </div>
+        <p className="mt-3 flex items-center justify-center gap-1.5 text-[11.5px] text-muted">
+          <MotoIcon className="h-4 w-auto" />
+          Envío desde {formatPrice(minDeliveryFee)} · {appConfig.deliveryTime} · {appConfig.city}
+        </p>
+        <a
+          href={`https://wa.me/${appConfig.whatsapp}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-block rounded-full bg-brand-soft px-4 py-2 text-[12px] font-semibold text-brand-dark"
+        >
+          Escribinos por WhatsApp
+        </a>
       </footer>
 
-      <BottomNav />
     </div>
+    </PageTransition>
   );
 }

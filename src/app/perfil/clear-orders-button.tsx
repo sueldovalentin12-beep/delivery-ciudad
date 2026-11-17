@@ -1,26 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { clearOrders, readOrders } from "@/lib/orders";
+import { useState } from "react";
+import { clearOrders, useOrders } from "@/lib/orders";
 
 /**
  * Botón para borrar el historial de pedidos guardado en el celular.
- * Pensado para el piloto: las pruebas anteriores quedan como pedidos
- * "Entregado" y confunden; con esto se limpian de un toque.
+ * No borra nada del comercio: solo la copia que quedó en este teléfono.
  */
 export function ClearOrdersButton() {
-  const [count, setCount] = useState<number | null>(null);
+  const orders = useOrders();
   const [cleared, setCleared] = useState(false);
-
-  useEffect(() => {
-    setCount(readOrders().length);
-  }, []);
+  const count = orders?.length ?? 0;
 
   if (count === 0 && !cleared) return null;
 
   return (
     <div className="rounded-2xl border border-line bg-white p-4">
-      <p className="text-[14px] font-bold text-foreground">🧹 Pedidos de prueba</p>
+      <p className="text-[14px] font-bold text-foreground">Historial de pedidos</p>
       <p className="mt-0.5 text-[12px] text-muted">
         {cleared
           ? "Historial borrado. Los próximos pedidos van a arrancar limpios."

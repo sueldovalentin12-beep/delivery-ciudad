@@ -1,9 +1,11 @@
 /* Service worker de Al Toque: mantiene la app viva sin internet.
  * Estrategia:
- * - Páginas: primero red; si no hay red, muestra la última versión guardada.
- * - Archivos (íconos, estilos, scripts): primero lo guardado, si no está, descarga.
+ * - Páginas: primero red; si no hay red, muestra la copia guardada de esa
+ *   misma página (o el inicio si nunca se visitó).
+ * - Archivos que no cambian (/_next/static, íconos): primero lo guardado.
+ * - Todo lo demás (datos de Next, API): siempre a la red, sin guardar.
  */
-const VERSION = "altoque-v2";
+const VERSION = "altoque-v3";
 const CORE_CACHE = `${VERSION}-paginas`;
 const ASSET_CACHE = `${VERSION}-archivos`;
 
@@ -42,7 +44,7 @@ self.addEventListener("fetch", (event) => {
   // Nunca se guardan en el cache, si no el panel mostraria una foto vieja.
   if (url.pathname.startsWith("/api/")) return;
 
-  // Páginas: red primero, guardado como respaldo.
+  // Páginas: red primero; cada página se guarda con su propia dirección.
   if (request.mode === "navigate") {
     event.respondWith(
       (async () => {
@@ -50,12 +52,16 @@ self.addEventListener("fetch", (event) => {
           const response = await fetch(request);
           if (response.ok) {
             const cache = await caches.open(CORE_CACHE);
-            cache.put("/", response.clone()).catch(() => {});
+            cache.put(url.pathname, response.clone()).catch(() => {});
           }
           return response;
         } catch {
-          const fallback = await caches.match("/");
-          if (fallback) return fallback;
+          // Sin red: la misma página guardada, o el inicio como último recurso.
+          const cache = await caches.open(CORE_CACHE);
+          const same = await cache.match(url.pathname);
+          if (same) return same;
+          const home = await cache.match("/");
+          if (home) return home;
           throw new Error("sin conexion y sin copia guardada");
         }
       })(),
@@ -63,7 +69,14 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Archivos: guardado primero, red como respaldo.
+  // Archivos que nunca cambian (con versión en el nombre): guardado primero.
+  const immutable =
+    url.pathname.startsWith("/_next/static/") ||
+    url.pathname.startsWith("/icons/") ||
+    url.pathname === "/apple-icon.png" ||
+    url.pathname === "/favicon.ico";
+  if (!immutable) return; // Todo lo demás va directo a la red.
+
   event.respondWith(
     (async () => {
       const cached = await caches.match(request);

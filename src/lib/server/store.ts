@@ -1,6 +1,12 @@
 import postgres from "postgres";
 import type { DeliveryAddress } from "@/lib/address";
-import { isOrderStatus, type OrderStatus } from "@/lib/order-status";
+import {
+  canTransition,
+  isFinalStatus,
+  isOrderStatus,
+  ORDER_STATUSES,
+  type OrderStatus,
+} from "@/lib/order-status";
 
 /**
  * Guarda los pedidos en la base de datos, para que el dueño y el repartidor
@@ -11,6 +17,8 @@ import { isOrderStatus, type OrderStatus } from "@/lib/order-status";
  */
 
 export type StoredItem = {
+  /** Clave del plato en el catálogo: "comercio:plato". */
+  key?: string;
   name: string;
   qty: number;
   price: number;
@@ -25,6 +33,10 @@ export type StoredOrder = {
   merchantName: string;
   items: StoredItem[];
   address: DeliveryAddress | null;
+  customerName: string;
+  customerPhone: string;
+  notes: string | null;
+  payment: "efectivo" | "transferencia";
   subtotal: number;
   deliveryFee: number;
   total: number;
@@ -72,7 +84,16 @@ async function ensureSchema(): Promise<void> {
           lng DOUBLE PRECISION NOT NULL,
           at TIMESTAMPTZ NOT NULL DEFAULT now()
         )`;
+      // Columnas agregadas después: para bases que ya existían.
+      await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_name TEXT NOT NULL DEFAULT ''`;
+      await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_phone TEXT NOT NULL DEFAULT ''`;
+      await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS notes TEXT`;
+      await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment TEXT NOT NULL DEFAULT 'efectivo'`;
     })();
+    // Si falla, que el próximo pedido lo vuelva a intentar.
+    schemaReady.catch(() => {
+      schemaReady = null;
+    });
   }
   await schemaReady;
 }
@@ -97,6 +118,10 @@ type OrderRow = {
   merchant_name: string;
   items: unknown;
   address: unknown;
+  customer_name: string;
+  customer_phone: string;
+  notes: string | null;
+  payment: string;
   subtotal: number;
   delivery_fee: number;
   total: number;
@@ -112,6 +137,10 @@ function rowToOrder(row: OrderRow): StoredOrder {
     merchantName: row.merchant_name,
     items: Array.isArray(row.items) ? (row.items as StoredItem[]) : [],
     address: (row.address as DeliveryAddress) ?? null,
+    customerName: row.customer_name ?? "",
+    customerPhone: row.customer_phone ?? "",
+    notes: row.notes ?? null,
+    payment: row.payment === "transferencia" ? "transferencia" : "efectivo",
     subtotal: row.subtotal,
     deliveryFee: row.delivery_fee,
     total: row.total,
@@ -122,70 +151,71 @@ function rowToOrder(row: OrderRow): StoredOrder {
 }
 
 export type NewOrder = {
-  id?: string;
+  id: string;
+  merchantSlug: string;
+  merchantName: string;
   items: StoredItem[];
   address: DeliveryAddress | null;
+  customerName: string;
+  customerPhone: string;
+  notes: string | null;
+  payment: "efectivo" | "transferencia";
   subtotal: number;
   deliveryFee: number;
   total: number;
 };
 
-/** Guarda el pedido. Devuelve el id definitivo (únicos: si choca, agrega un sufijo). */
-export async function createOrder(order: NewOrder): Promise<StoredOrder> {
-  const baseId = order.id?.trim() || `AT-${Date.now().toString(36)}`;
-  const items = order.items;
-  const first = items[0]?.merchantName ?? "Comercio";
-  const slug = items[0]?.merchantSlug ?? "";
-
-  const now = new Date();
+/**
+ * Guarda el pedido. Si ya existe uno con ese id (por ejemplo, el cliente
+ * reintentó), devuelve el que ya estaba, sin tocarlo.
+ */
+export async function createOrder(
+  order: NewOrder,
+): Promise<{ order: StoredOrder; created: boolean }> {
+  const now = new Date().toISOString();
   const candidate: StoredOrder = {
-    id: baseId,
-    merchantSlug: slug,
-    merchantName: first,
-    items,
+    id: order.id,
+    merchantSlug: order.merchantSlug,
+    merchantName: order.merchantName,
+    items: order.items,
     address: order.address,
+    customerName: order.customerName,
+    customerPhone: order.customerPhone,
+    notes: order.notes,
+    payment: order.payment,
     subtotal: order.subtotal,
     deliveryFee: order.deliveryFee,
     total: order.total,
     status: "recibido",
-    createdAt: now.toISOString(),
-    updatedAt: now.toISOString(),
+    createdAt: now,
+    updatedAt: now,
   };
 
   if (!sql) {
-    // Reserva en memoria: si ya existe el id, agrega un sufijo.
-    let id = candidate.id;
-    let attempt = 1;
-    while (memory.orders.has(id)) {
-      attempt += 1;
-      id = `${baseId}-${attempt}`;
-    }
-    memory.orders.set(id, { ...candidate, id });
-    return { ...candidate, id };
+    const existing = memory.orders.get(candidate.id);
+    if (existing) return { order: existing, created: false };
+    memory.orders.set(candidate.id, candidate);
+    return { order: candidate, created: true };
   }
 
   await ensureSchema();
-  let id = candidate.id;
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    try {
-      const rows = await sql`
-        INSERT INTO orders (id, merchant_slug, merchant_name, items, address, subtotal, delivery_fee, total, status)
-        VALUES (${id}, ${candidate.merchantSlug}, ${candidate.merchantName},
-                ${sql.json(items)}, ${candidate.address ? sql.json(candidate.address) : null},
-                ${candidate.subtotal}, ${candidate.deliveryFee}, ${candidate.total}, 'recibido')
-        RETURNING *`;
-      return rowToOrder(rows[0] as unknown as OrderRow);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (message.includes("duplicate key") || message.includes("unique")) {
-        attempt += 1;
-        id = `${baseId}-${attempt}`;
-        continue;
-      }
-      throw error;
-    }
-  }
-  throw new Error("no se pudo generar un id único para el pedido");
+  const rows = (await sql`
+    INSERT INTO orders (id, merchant_slug, merchant_name, items, address,
+                        customer_name, customer_phone, notes, payment,
+                        subtotal, delivery_fee, total, status)
+    VALUES (${candidate.id}, ${candidate.merchantSlug}, ${candidate.merchantName},
+            ${sql.json(candidate.items)}, ${candidate.address ? sql.json(candidate.address) : null},
+            ${candidate.customerName}, ${candidate.customerPhone}, ${candidate.notes},
+            ${candidate.payment}, ${candidate.subtotal}, ${candidate.deliveryFee},
+            ${candidate.total}, 'recibido')
+    ON CONFLICT (id) DO NOTHING
+    RETURNING *`) as unknown as OrderRow[];
+  if (rows.length) return { order: rowToOrder(rows[0]), created: true };
+
+  const existing = (await sql`
+    SELECT * FROM orders WHERE id = ${candidate.id}`) as unknown as OrderRow[];
+  if (!existing.length) throw new Error("el pedido no se guardó ni existía");
+  return { order: rowToOrder(existing[0]), created: false };
 }
 
 export async function listOrders(): Promise<StoredOrder[]> {
@@ -207,23 +237,49 @@ export async function getOrder(id: string): Promise<StoredOrder | null> {
   return rows.length ? rowToOrder(rows[0]) : null;
 }
 
+export type StatusUpdateResult =
+  | { ok: true; order: StoredOrder }
+  | { ok: false; reason: "not_found" | "invalid_transition"; current?: OrderStatus };
+
+/** Cambia el estado, solo si la transición está permitida. */
 export async function updateOrderStatus(
   id: string,
   status: OrderStatus,
-): Promise<StoredOrder | null> {
+): Promise<StatusUpdateResult> {
   if (!sql) {
     const order = memory.orders.get(id);
-    if (!order) return null;
+    if (!order) return { ok: false, reason: "not_found" };
+    if (!canTransition(order.status, status)) {
+      return { ok: false, reason: "invalid_transition", current: order.status };
+    }
     const updated = { ...order, status, updatedAt: new Date().toISOString() };
     memory.orders.set(id, updated);
-    return updated;
+    if (isFinalStatus(status)) memory.positions.delete(id);
+    return { ok: true, order: updated };
   }
+
   await ensureSchema();
+  // Los estados desde los que se puede llegar a este.
+  const allowedFrom = ORDER_STATUSES.filter((from) => canTransition(from, status));
   const rows = (await sql`
     UPDATE orders SET status = ${status}, updated_at = now()
-    WHERE id = ${id}
+    WHERE id = ${id} AND status IN ${sql(allowedFrom)}
     RETURNING *`) as unknown as OrderRow[];
-  return rows.length ? rowToOrder(rows[0]) : null;
+  if (rows.length) {
+    if (isFinalStatus(status)) {
+      await sql`DELETE FROM courier_positions WHERE order_id = ${id}`;
+    }
+    return { ok: true, order: rowToOrder(rows[0]) };
+  }
+
+  const current = (await sql`
+    SELECT status FROM orders WHERE id = ${id}`) as unknown as { status: string }[];
+  if (!current.length) return { ok: false, reason: "not_found" };
+  return {
+    ok: false,
+    reason: "invalid_transition",
+    current: isOrderStatus(current[0].status) ? current[0].status : "recibido",
+  };
 }
 
 export async function saveCourierPosition(

@@ -1,90 +1,38 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
 import { EmptyState } from "@/components/empty-state";
-import { CourierMap, type MapPoint } from "@/components/courier-map";
+import { OrderProgress } from "@/components/order-progress";
+import { ReorderButton } from "@/components/reorder-button";
 import { addressLabel } from "@/lib/address";
 import { formatPrice } from "@/lib/demo-data";
-import { markOrderStatus } from "@/lib/orders";
-import { readOrders, type Order } from "@/lib/orders";
-import { STATUS_LABEL, isOrderStatus, type OrderStatus } from "@/lib/order-status";
+import { useOrders, type Order } from "@/lib/orders";
+import { STATUS_LABEL, isFinalStatus, type OrderStatus } from "@/lib/order-status";
+import { useOrderSync } from "@/lib/order-sync";
+import { useBump } from "@/lib/use-bump";
+import { merchantWhatsAppUrl } from "@/lib/whatsapp";
 
+/** Lista de pedidos: livianos, cada uno lleva a su pantalla de seguimiento. */
 export function OrdersView() {
-  const [orders, setOrders] = useState<Order[] | null>(null);
-  /** Última ubicación conocida del repartidor, por id de pedido en el servidor. */
-  const [positions, setPositions] = useState<Record<string, MapPoint>>({});
+  const orders = useOrders();
 
-  useEffect(() => {
-    setOrders(readOrders());
-  }, []);
-
-  // Consulta al servidor el estado de los pedidos que no terminaron y,
-  // si el repartidor está en camino, también su ubicación.
-  const refresh = useCallback(async () => {
-    const local = readOrders();
-    setOrders(local);
-    const tracking = local.filter(
-      (order) => order.serverId && order.status !== "entregado",
-    );
-    if (tracking.length === 0) return;
-    const results = await Promise.allSettled(
-      tracking.map(async (order) => {
-        const response = await fetch(
-          `/api/orders/${encodeURIComponent(order.serverId as string)}`,
-          { cache: "no-store" },
-        );
-        if (!response.ok) throw new Error(String(response.status));
-        return (await response.json()) as {
-          id: string;
-          status: string;
-          position: MapPoint | null;
-        };
-      }),
-    );
-    const nextPositions: Record<string, MapPoint> = {};
-    for (let index = 0; index < tracking.length; index += 1) {
-      const settled = results[index];
-      if (settled.status !== "fulfilled") continue;
-      const order = tracking[index];
-      const data = settled.value;
-      if (isOrderStatus(data.status)) {
-        markOrderStatus(order.id, data.status as OrderStatus);
-        setOrders((current) =>
-          current
-            ? current.map((entry) =>
-                entry.id === order.id ? { ...entry, status: data.status as OrderStatus } : entry,
-              )
-            : current,
-        );
-      }
-      if (data.position) nextPositions[data.id] = data.position;
-    }
-    setPositions(nextPositions);
-  }, []);
-
-  // Refresco al abrir y cada 8 segundos mientras hay pedidos en curso.
-  useEffect(() => {
-    const timer = setInterval(() => void refresh(), 8000);
-    return () => clearInterval(timer);
-  }, [refresh]);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+  // Al abrir y cada 8 segundos mientras hay pedidos en curso y la pantalla está a la vista:
+  // reenvía lo que no llegó y consulta el estado de lo que sigue en curso.
+  useOrderSync(orders, 8000);
 
   if (orders === null) {
+    // Mismo alto que los pedidos reales: no hay salto cuando aparecen.
     return (
-      <div className="space-y-2.5" aria-hidden>
-        <div className="h-24 animate-pulse rounded-2xl bg-surface" />
-        <div className="h-24 animate-pulse rounded-2xl bg-surface" />
+      <div className="min-h-[60dvh] space-y-2.5" aria-hidden>
+        <div className="skeleton h-40 rounded-2xl" />
+        <div className="skeleton h-40 rounded-2xl" />
       </div>
     );
   }
 
   if (orders.length === 0) {
     return (
-      <div>
+      <div className="anim-fade-in min-h-[60dvh]">
         <EmptyState
           emoji="🧾"
           title="Todavía no hiciste pedidos"
@@ -101,42 +49,56 @@ export function OrdersView() {
   }
 
   return (
-    <ul className="space-y-2.5">
-      {orders.map((order) => (
-        <OrderCard
-          key={order.id}
-          order={order}
-          position={order.serverId ? positions[order.serverId] ?? null : null}
-        />
+    <ul className="min-h-[60dvh] space-y-2.5">
+      {orders.map((order, index) => (
+        <OrderCard key={order.id} order={order} index={index} />
       ))}
     </ul>
   );
 }
 
-function OrderCard({
-  order,
-  position,
-}: {
-  order: Order;
-  position: MapPoint | null;
-}) {
+function OrderCard({ order, index }: { order: Order; index: number }) {
   const status: OrderStatus = order.status ?? "recibido";
-  const showMap = order.address?.lat != null && order.address?.lng != null;
+  const sent = Boolean(order.serverId);
+  const cancelled = sent && status === "cancelado";
+  const whatsappUrl = order.syncFailed ? merchantWhatsAppUrl(order) : null;
+  const bump = useBump(sent ? status : null);
+  const pillClass = `rounded-full px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide ${
+    bump > 0 ? "anim-flash" : ""
+  }`;
 
   return (
     <li
-      key={order.id}
-      className="rounded-2xl border border-line p-3.5"
+      className="anim-fade-up relative rounded-2xl border border-line p-3.5"
+      style={{ "--i": index } as React.CSSProperties}
     >
+      {/* Toda la tarjeta lleva al seguimiento; el botón de WhatsApp va por encima. */}
+      <Link
+        href={`/pedidos/${order.id}`}
+        aria-label={`Seguir el pedido ${order.id}`}
+        className="absolute inset-0 rounded-2xl"
+      />
+
       <div className="flex items-center justify-between gap-3">
         <span className="text-[13.5px] font-bold text-foreground">
           {order.id}
         </span>
-        <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-brand-dark">
-          {STATUS_LABEL[status]}
-        </span>
+        {!sent ? (
+          <span className={`${pillClass} bg-surface text-muted`}>
+            Sin confirmar
+          </span>
+        ) : cancelled ? (
+          <span key={bump} className={`${pillClass} bg-red-50 text-red-700`}>
+            {STATUS_LABEL[status]}
+          </span>
+        ) : (
+          <span key={bump} className={`${pillClass} bg-brand-soft text-brand-dark`}>
+            {STATUS_LABEL[status]}
+          </span>
+        )}
       </div>
       <p className="mt-0.5 text-[11.5px] text-muted">
+        {order.merchantName ? `${order.merchantName} · ` : ""}
         {formatDate(order.createdAt)}
       </p>
       {order.address ? (
@@ -166,20 +128,57 @@ function OrderCard({
         <span className="tabular-nums">{formatPrice(order.total)}</span>
       </div>
 
-      {showMap && status !== "entregado" ? (
-        <div className="mt-2.5">
-          <CourierMap
-            delivery={{
-              lat: order.address?.lat as number,
-              lng: order.address?.lng as number,
-            }}
-            courier={position}
-          />
+      {!sent ? (
+        order.syncFailed ? (
+          <div className="relative z-10 mt-2.5 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11.5px] font-semibold text-amber-800">
+            <p>⚠️ Este pedido no llegó al comercio: avisales por WhatsApp.</p>
+            {whatsappUrl ? (
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1.5 inline-block rounded-full bg-brand px-3.5 py-1.5 text-[12px] font-bold text-white"
+              >
+                Avisar por WhatsApp
+              </a>
+            ) : null}
+          </div>
+        ) : (
+          <p className="mt-2.5 text-[11.5px] text-muted">
+            Enviando al comercio…
+          </p>
+        )
+      ) : cancelled ? (
+        <p className="mt-2.5 rounded-xl border border-red-200 bg-red-50 p-2.5 text-[12px] font-semibold text-red-700">
+          El comercio canceló este pedido.
+        </p>
+      ) : (
+        <div className="mt-2.5 space-y-1.5">
+          <OrderProgress status={status} />
+          <p className="flex items-center justify-between text-[12px] text-muted">
+            <span>{PROGRESS_TEXT[status]}</span>
+            <span className="shrink-0 pl-2 font-semibold text-brand-dark">
+              Seguir →
+            </span>
+          </p>
         </div>
+      )}
+
+      {/* Pedido terminado: se puede volver a pedir lo mismo con un toque. */}
+      {sent && isFinalStatus(status) ? (
+        <ReorderButton order={order} className="relative z-10 mt-2.5" />
       ) : null}
     </li>
   );
 }
+
+const PROGRESS_TEXT: Record<OrderStatus, string> = {
+  recibido: "Le llegó al comercio.",
+  preparando: "Lo están preparando.",
+  "en camino": "Va en camino.",
+  entregado: "Entregado. ¡Que lo disfrutes!",
+  cancelado: "El comercio canceló este pedido.",
+};
 
 function formatDate(timestamp: number) {
   return new Date(timestamp).toLocaleString("es-AR", {

@@ -4,56 +4,64 @@ import { MinusIcon, PlusIcon } from "@/components/icons";
 
 /**
  * Control de cantidad: "- 2 +".
- * Con cantidad 0 se muestra un solo botón "+".
- * Lo usan el menú del comercio y el carrito, así se comportan igual.
+ * Con cantidad 0 se ve solo el "+"; al tocarlo, el control se abre hacia la
+ * izquierda y aparece el "- 1 +" (una sola pieza que cambia de ancho, no un
+ * cambio de botones). Lo usan el menú del comercio y el carrito.
  */
 export function QtyStepper({
   qty,
   itemName,
   onIncrement,
   onDecrement,
+  disableAdd = false,
 }: {
   qty: number;
   itemName: string;
   onIncrement: () => void;
   onDecrement: () => void;
+  /** No deja sumar (ej. el comercio está cerrado). Restar sigue andando. */
+  disableAdd?: boolean;
 }) {
-  if (qty === 0) {
-    return (
-      <button
-        type="button"
-        onClick={onIncrement}
-        aria-label={`Agregar ${itemName} al carrito`}
-        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-soft text-brand-dark transition active:scale-90"
-      >
-        <PlusIcon className="h-4 w-4" />
-      </button>
-    );
-  }
+  const open = qty > 0;
 
   return (
-    <div className="flex shrink-0 items-center gap-1 rounded-full bg-brand-soft p-1">
+    <div
+      className={`flex h-9 shrink-0 items-center justify-end overflow-hidden rounded-full bg-brand-soft p-1 transition-[width] duration-300 ease-out ${
+        open ? "w-[5.25rem]" : "w-9"
+      }`}
+    >
       <button
         type="button"
         onClick={onDecrement}
+        disabled={!open}
+        tabIndex={open ? 0 : -1}
+        aria-hidden={!open || undefined}
         aria-label={`Quitar uno de ${itemName}`}
-        className="grid h-7 w-7 place-items-center rounded-full bg-white text-brand-dark transition active:scale-90"
+        className={`grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-brand-dark transition-[opacity,scale] duration-200 ${
+          open ? "scale-100 opacity-100" : "pointer-events-none scale-50 opacity-0"
+        }`}
       >
         <MinusIcon className="h-3.5 w-3.5" />
       </button>
       <span
         aria-live="polite"
-        className="min-w-4 text-center text-[13px] font-bold tabular-nums text-brand-dark"
+        aria-hidden={!open || undefined}
+        className={`w-5 shrink-0 text-center text-[13px] font-bold tabular-nums text-brand-dark transition-opacity duration-200 ${
+          open ? "opacity-100" : "opacity-0"
+        }`}
       >
-        {qty}
+        {qty > 0 ? qty : ""}
       </span>
       <button
         type="button"
         onClick={onIncrement}
-        aria-label={`Agregar otro ${itemName}`}
-        className="grid h-7 w-7 place-items-center rounded-full bg-white text-brand-dark transition active:scale-90"
+        disabled={disableAdd}
+        aria-label={open ? `Agregar otro ${itemName}` : `Agregar ${itemName} al carrito`}
+        className={`grid shrink-0 place-items-center rounded-full text-brand-dark transition-[background-color,scale,opacity] duration-300 disabled:opacity-35 ${
+          open ? "h-7 w-7 bg-white" : "h-7 w-7 bg-transparent"
+        }`}
       >
-        <PlusIcon className="h-3.5 w-3.5" />
+        <PlusIcon className={open ? "h-3.5 w-3.5" : "h-4 w-4"} />
       </button>
     </div>
   );

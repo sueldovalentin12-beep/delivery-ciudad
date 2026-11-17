@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { EmptyState } from "@/components/empty-state";
+import { Photo } from "@/components/photo";
 import { QtyStepper } from "@/components/qty-stepper";
 import { useCart } from "@/lib/cart";
-import { appConfig } from "@/lib/config";
 import {
   addressLabel,
   mapPreviewUrl,
@@ -14,31 +14,112 @@ import {
   saveAddress,
   type DeliveryAddress,
 } from "@/lib/address";
-import { formatPrice } from "@/lib/demo-data";
-import { saveOrder, type Order } from "@/lib/orders";
+import {
+  isValidName,
+  isValidPhone,
+  readCustomer,
+  saveCustomer,
+} from "@/lib/customer";
+import {
+  findMenuItemByKey,
+  formatPrice,
+  getMerchantBySlug,
+} from "@/lib/demo-data";
+import { whenLong } from "@/lib/hours";
+import { itemPrice } from "@/lib/pricing";
+import { useOpenStatus } from "@/lib/use-open-status";
+import {
+  newOrderId,
+  saveOrder,
+  type Order,
+  type PaymentMethod,
+} from "@/lib/orders";
 import { merchantWhatsAppUrl } from "@/lib/whatsapp";
-import { markOrderServer, markOrderStatus } from "@/lib/orders";
 
 export function CartView() {
-  const { items, ready, subtotal, count, changeQty, clear } = useCart();
+  const { ready, count } = useCart();
   const [confirmed, setConfirmed] = useState<Order | null>(null);
   /** Aviso si el pedido no se pudo registrar en el servidor. */
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [address, setAddress] = useState<DeliveryAddress | null>(null);
-  const [geoState, setGeoState] = useState<"idle" | "loading" | "denied">("idle");
 
-  // Al abrir el carrito, recuperamos la dirección guardada en el celular.
-  useEffect(() => {
-    const saved = readAddress();
-    if (saved) setAddress(saved);
-  }, []);
+  // Todavía estamos leyendo el carrito guardado en el celular.
+  if (!ready) {
+    return (
+      <div className="min-h-[70dvh] space-y-2.5" aria-hidden>
+        {[0, 1].map((row) => (
+          <div key={row} className="skeleton h-[4.75rem] rounded-2xl" />
+        ))}
+        <div className="skeleton h-48 rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (confirmed) {
+    return <OrderConfirmation order={confirmed} syncError={syncError} />;
+  }
+
+  if (count === 0) {
+    return (
+      <div className="anim-fade-in">
+        <EmptyState
+          emoji="🛒"
+          title="Tu carrito está vacío"
+          description="Elegí un comercio y tocá el + de lo que quieras pedir."
+        />
+        <Link
+          href="/comercios"
+          className="mx-auto mt-2 block w-fit rounded-full bg-brand px-5 py-2.5 text-[13px] font-semibold text-white"
+        >
+          Ver comercios
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <CartForm
+      onConfirmed={(order, warning) => {
+        setSyncError(warning);
+        setConfirmed(order);
+      }}
+    />
+  );
+}
+
+/**
+ * El carrito con el formulario de entrega y datos. Se monta recién cuando el
+ * carrito ya se leyó en el celular (después de hidratar), así que puede
+ * arrancar con lo guardado sin desfasar el render del servidor.
+ */
+function CartForm({
+  onConfirmed,
+}: {
+  onConfirmed: (order: Order, warning: string | null) => void;
+}) {
+  const { items, subtotal, merchantSlug, changeQty, clear } = useCart();
+  const merchant = merchantSlug ? getMerchantBySlug(merchantSlug) : undefined;
+  // Abierto o cerrado según la hora real de Argentina (null = todavía no sabemos).
+  const openStatus = useOpenStatus(merchant);
+  const closed = openStatus !== null && !openStatus.open;
+
+  const [address, setAddress] = useState<DeliveryAddress | null>(() => readAddress());
+  const [geoState, setGeoState] = useState<"idle" | "loading" | "denied">("idle");
+  const [name, setName] = useState(() => readCustomer()?.name ?? "");
+  const [phone, setPhone] = useState(() => readCustomer()?.phone ?? "");
+  const [notes, setNotes] = useState("");
+  const [payment, setPayment] = useState<PaymentMethod>("efectivo");
+  const [sending, setSending] = useState(false);
+  /** Mensaje del servidor cuando rechazó el pedido (se muestra en rojo). */
+  const [serverError, setServerError] = useState<string | null>(null);
+  /** Evita que un doble toque mande el pedido dos veces. */
+  const sendingRef = useRef(false);
 
   // Cada cambio de dirección se guarda, para el próximo pedido.
   useEffect(() => {
     if (address && address.street.trim()) saveAddress(address);
   }, [address]);
 
-  function useMyLocation() {
+  function askLocation() {
     if (!navigator.geolocation) {
       setGeoState("denied");
       return;
@@ -58,121 +139,150 @@ export function CartView() {
     );
   }
 
-  // Todavía estamos leyendo el carrito guardado en el celular.
-  if (!ready) {
-    return (
-      <div className="space-y-2.5" aria-hidden>
-        {[0, 1].map((row) => (
-          <div
-            key={row}
-            className="h-20 animate-pulse rounded-2xl bg-surface"
-          />
-        ))}
-      </div>
-    );
-  }
-
-  if (confirmed) {
-    return <OrderConfirmation order={confirmed} syncError={syncError} />;
-  }
-
-  if (count === 0) {
-    return (
-      <div>
-        <EmptyState
-          emoji="🛒"
-          title="Tu carrito está vacío"
-          description="Elegí un comercio y tocá el + de lo que quieras pedir."
-        />
-        <Link
-          href="/comercios"
-          className="mx-auto mt-2 block w-fit rounded-full bg-brand px-5 py-2.5 text-[13px] font-semibold text-white"
-        >
-          Ver comercios
-        </Link>
-      </div>
-    );
-  }
-
-  const deliveryFee = appConfig.deliveryFeeValue;
+  const deliveryFee = merchant?.deliveryFeeValue ?? 0;
+  const minOrder = merchant?.minOrderValue ?? 0;
   const total = subtotal + deliveryFee;
   const hasStreet = (address?.street.trim().length ?? 0) >= 3;
+  const nameOk = isValidName(name);
+  const phoneOk = isValidPhone(phone);
+  const minOk = subtotal >= minOrder;
+  const canConfirm =
+    Boolean(merchant) && !closed && hasStreet && nameOk && phoneOk && minOk;
 
-  function confirmOrder() {
-    if (!address || !hasStreet) return;
-    const order = saveOrder({
-      items,
-      subtotal,
-      deliveryFee,
-      total,
-      address: {
-        ...address,
-        street: address.street.trim(),
-        reference: address.reference?.trim() || undefined,
-      },
-    });
-    clear();
-    setConfirmed(order);
-    void syncOrder(order);
+  // Lo primero que falta para poder confirmar.
+  let hint: string | null = null;
+  if (closed && merchant) {
+    hint = `${merchant.name} está cerrado ahora: no podemos tomar el pedido.`;
+  } else if (!hasStreet) hint = "Escribí la calle y número para confirmar el pedido.";
+  else if (!nameOk) hint = "Escribí tu nombre para confirmar el pedido.";
+  else if (!phoneOk)
+    hint = "Escribí un teléfono válido (con código de área) para confirmar el pedido.";
+  else if (!minOk && merchant) {
+    hint = `Te faltan ${formatPrice(minOrder - subtotal)} para llegar al mínimo de ${merchant.name} (${formatPrice(minOrder)}).`;
   }
 
-  /** Manda el pedido al servidor para que lo vean el dueño y el repartidor. */
-  async function syncOrder(order: Order) {
+  async function confirmOrder() {
+    if (sendingRef.current || !canConfirm || !address || !merchant) return;
+    sendingRef.current = true;
+    setSending(true);
+    setServerError(null);
+
+    const id = newOrderId();
+    const cleanAddress: DeliveryAddress = {
+      ...address,
+      street: address.street.trim(),
+      reference: address.reference?.trim() || undefined,
+    };
+    const customer = { name: name.trim(), phone: phone.trim() };
+    const cleanNotes = notes.trim() || undefined;
+    saveCustomer(customer);
+
+    const details = {
+      items,
+      address: cleanAddress,
+      customerName: customer.name,
+      customerPhone: customer.phone,
+      notes: cleanNotes,
+      payment,
+      merchantSlug: merchant.slug,
+      merchantName: merchant.name,
+    };
+
+    /** Plan B: el pedido queda en el celular y se reintenta desde "Mis pedidos". */
+    function keepLocally(warning: string) {
+      const order = saveOrder({
+        id,
+        ...details,
+        subtotal,
+        deliveryFee,
+        total,
+      });
+      clear();
+      onConfirmed(order, warning);
+    }
+
     try {
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: order.id,
-          items: order.items.map((item) => ({
-            name: item.name,
-            qty: item.qty,
-            price: item.price,
-            emoji: item.emoji,
-            merchantName: item.merchantName,
-            merchantSlug: item.merchantSlug,
-          })),
-          address: order.address ?? null,
-          subtotal: order.subtotal,
-          deliveryFee: order.deliveryFee,
-          total: order.total,
+          id,
+          items: items.map((item) => ({ key: item.key, qty: item.qty })),
+          address: cleanAddress,
+          customer,
+          notes: cleanNotes,
+          payment,
         }),
       });
-      if (!response.ok) {
-        setSyncError(
-          response.status === 503
-            ? "El comercio todavía no tiene su panel conectado: avisale por WhatsApp igual."
-            : "No se pudo registrar el pedido en el panel del comercio. Avisale por WhatsApp igual.",
+
+      if (response.status === 400) {
+        const data = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        setServerError(
+          data.error ??
+            "No pudimos tomar tu pedido. Revisá los datos y probá de nuevo.",
         );
         return;
       }
-      const data = (await response.json()) as { id?: string };
-      const serverId = data.id ?? order.id;
-      markOrderServer(order.id, serverId);
-      markOrderStatus(order.id, "recibido");
-      setConfirmed((current) =>
-        current && current.id === order.id ? { ...current, serverId } : current,
+
+      if (response.ok) {
+        const data = (await response.json()) as {
+          id?: string;
+          subtotal: number;
+          deliveryFee: number;
+          total: number;
+        };
+        const order = saveOrder({
+          id,
+          ...details,
+          subtotal: data.subtotal,
+          deliveryFee: data.deliveryFee,
+          total: data.total,
+          serverId: data.id ?? id,
+          status: "recibido",
+        });
+        clear();
+        onConfirmed(order, null);
+        return;
+      }
+
+      keepLocally(
+        response.status === 503
+          ? "El comercio todavía no tiene su panel conectado: avisale por WhatsApp para que sepa de tu pedido."
+          : "No pudimos mandar el pedido al panel del comercio: avisale por WhatsApp. Lo reintentamos solos desde Mis pedidos.",
       );
     } catch {
-      setSyncError(
-        "Sin internet: el pedido quedó en tu celular y se puede avisar por WhatsApp igual.",
+      keepLocally(
+        "Sin internet: el pedido quedó en tu celular. Avisale al comercio por WhatsApp; lo reintentamos solos cuando vuelva la conexión.",
       );
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
     }
   }
 
   return (
-    <div className="space-y-5">
+    <div className="anim-fade-in space-y-5">
       <ul className="space-y-2.5">
-        {items.map((item) => (
+        {items.map((item, index) => {
+          // La foto y el precio de lista salen del catálogo (no se guardan en el celular).
+          const found = findMenuItemByKey(item.key);
+          const original = found ? itemPrice(found.item).original : item.price;
+          return (
           <li
             key={item.key}
-            className="flex items-center gap-3 rounded-2xl border border-line p-2.5"
+            className="anim-fade-up flex items-center gap-3 rounded-2xl border border-line p-2.5"
+            style={{ "--i": index } as React.CSSProperties}
           >
-            <span
-              className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-surface text-xl"
-              aria-hidden
-            >
-              {item.emoji}
+            <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-surface">
+              <Photo
+                src={found?.item.photo}
+                emoji={item.emoji}
+                gradient={found?.merchant.gradient}
+                sizes="56px"
+                emojiClassName="text-xl"
+              />
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13.5px] font-semibold text-foreground">
@@ -181,8 +291,13 @@ export function CartView() {
               <p className="truncate text-[11.5px] text-muted">
                 {item.merchantName}
               </p>
-              <p className="mt-0.5 text-[12.5px] font-semibold tabular-nums text-foreground">
+              <p className="mt-0.5 flex items-center gap-1.5 text-[12.5px] font-semibold tabular-nums text-foreground">
                 {formatPrice(item.price * item.qty)}
+                {original > item.price ? (
+                  <s className="text-[11px] font-normal text-muted">
+                    {formatPrice(original * item.qty)}
+                  </s>
+                ) : null}
               </p>
             </div>
             <QtyStepper
@@ -190,17 +305,111 @@ export function CartView() {
               itemName={item.name}
               onIncrement={() => changeQty(item.key, 1)}
               onDecrement={() => changeQty(item.key, -1)}
+              disableAdd={closed}
             />
           </li>
-        ))}
+          );
+        })}
       </ul>
+
+      {closed && merchant ? (
+        <p
+          role="alert"
+          className="rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-[12.5px] font-semibold leading-snug text-amber-800"
+        >
+          {merchant.name} está cerrado ahora
+          {openStatus?.change ? ` · abre ${whenLong(openStatus.change)}` : ""}.
+          <span className="mt-0.5 block text-[11.5px] font-normal">
+            Tu carrito queda guardado: cuando abra, podés confirmar el pedido.
+          </span>
+        </p>
+      ) : null}
 
       <AddressCard
         address={address}
         onChange={setAddress}
         geoState={geoState}
-        onUseLocation={useMyLocation}
+        onUseLocation={askLocation}
       />
+
+      <section className="space-y-3 rounded-2xl border border-line bg-white p-3.5">
+        <h2 className="text-[13.5px] font-bold text-foreground">Tus datos</h2>
+
+        <label className="block">
+          <span className="mb-1 block text-[11.5px] font-semibold text-muted">
+            Tu nombre
+          </span>
+          <input
+            type="text"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            maxLength={80}
+            autoComplete="name"
+            placeholder="Ej: Lucía Gómez"
+            enterKeyHint="next"
+            className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-[16px] text-foreground outline-none focus:border-brand"
+          />
+        </label>
+
+        <label className="block">
+          <span className="mb-1 block text-[11.5px] font-semibold text-muted">
+            Tu teléfono
+          </span>
+          <input
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            value={phone}
+            onChange={(event) => setPhone(event.target.value)}
+            maxLength={30}
+            placeholder="Ej: 3455 123456"
+            enterKeyHint="next"
+            className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-[16px] text-foreground outline-none focus:border-brand"
+          />
+        </label>
+
+        <label className="block">
+          <span className="mb-1 block text-[11.5px] font-semibold text-muted">
+            Aclaraciones para el comercio (opcional)
+          </span>
+          <textarea
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            maxLength={300}
+            rows={2}
+            placeholder="Ej: sin cebolla, timbre no anda"
+            className="w-full resize-none rounded-xl border border-line bg-surface px-3 py-2.5 text-[16px] text-foreground outline-none focus:border-brand"
+          />
+        </label>
+
+        <div>
+          <span className="mb-1 block text-[11.5px] font-semibold text-muted">
+            ¿Cómo pagás?
+          </span>
+          <div className="grid grid-cols-2 gap-2">
+            {(
+              [
+                ["efectivo", "Efectivo"],
+                ["transferencia", "Transferencia"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={payment === value}
+                onClick={() => setPayment(value)}
+                className={`rounded-xl border py-2.5 text-[13px] font-semibold transition active:scale-[0.99] ${
+                  payment === value
+                    ? "border-brand bg-brand-soft text-brand-dark"
+                    : "border-line bg-white text-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <section className="space-y-1.5 rounded-2xl border border-line bg-surface p-3.5 text-[13px]">
         <div className="flex justify-between">
@@ -222,30 +431,41 @@ export function CartView() {
       </section>
 
       <div className="space-y-2">
-        <button
-          type="button"
-          onClick={confirmOrder}
-          disabled={!hasStreet}
-          className="w-full rounded-2xl bg-brand py-3.5 text-[14.5px] font-bold text-white transition active:scale-[0.99] disabled:opacity-40"
-        >
-          Confirmar pedido · {formatPrice(total)}
-        </button>
-        {!hasStreet ? (
-          <p className="text-center text-[11.5px] text-muted">
-            Escribí la calle y número para confirmar el pedido.
+        {serverError ? (
+          <p
+            role="alert"
+            className="rounded-2xl border border-red-200 bg-red-50 p-3.5 text-[12.5px] font-semibold text-red-700"
+          >
+            ⚠️ {serverError}
           </p>
         ) : null}
         <button
           type="button"
+          onClick={() => void confirmOrder()}
+          disabled={!canConfirm || sending}
+          className="w-full rounded-2xl bg-brand py-3.5 text-[14.5px] font-bold text-white transition active:scale-[0.99] disabled:opacity-40"
+        >
+          {sending
+            ? "Enviando pedido…"
+            : `Confirmar pedido · ${formatPrice(total)}`}
+        </button>
+        {hint ? (
+          <p className="text-center text-[11.5px] text-muted">{hint}</p>
+        ) : null}
+        <button
+          type="button"
           onClick={clear}
-          className="w-full py-2 text-[12px] font-medium text-muted hover:text-foreground"
+          disabled={sending}
+          className="w-full py-2 text-[12px] font-medium text-muted hover:text-foreground disabled:opacity-50"
         >
           Vaciar carrito
         </button>
       </div>
 
       <p className="pb-2 text-center text-[11px] leading-relaxed text-muted">
-        El pago lo coordinás al recibir. Mercado Pago llega en la próxima etapa.
+        {payment === "efectivo"
+          ? "Pagás en efectivo al recibir."
+          : "Te pasamos el alias para transferir cuando confirmemos el pedido."}
       </p>
     </div>
   );
@@ -369,9 +589,9 @@ function OrderConfirmation({
   const mapUrl = order.address ? mapsUrl(order.address) : null;
 
   return (
-    <div className="pb-4 text-center">
+    <div className="anim-fade-in pb-4 text-center">
       <span
-        className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-brand-soft text-4xl"
+        className="anim-pop mx-auto grid h-20 w-20 place-items-center rounded-full bg-brand-soft text-4xl"
         aria-hidden
       >
         🎉
@@ -422,14 +642,37 @@ function OrderConfirmation({
         </div>
       ) : null}
 
+      <p className="mt-3 text-[12px] text-muted">
+        {order.payment === "transferencia"
+          ? "Te pasamos el alias para transferir cuando confirmemos el pedido."
+          : "Pagás en efectivo al recibir."}
+      </p>
+
       <div className="mt-5 space-y-2">
+        {order.serverId ? (
+          <p className="text-[11.5px] font-semibold text-brand-dark">
+            ✅ El comercio ya ve tu pedido en su panel.
+          </p>
+        ) : (
+          <p className="rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11.5px] font-semibold text-amber-800">
+            ⚠️{" "}
+            {syncError ??
+              "El pedido quedó en tu celular y todavía no le llegó al comercio: avisale por WhatsApp."}
+          </p>
+        )}
+        <Link
+          href={`/pedidos/${order.id}`}
+          className="block rounded-2xl bg-brand py-3 text-[14px] font-bold text-white"
+        >
+          Seguir mi pedido
+        </Link>
         {whatsappUrl ? (
           <>
             <a
               href={whatsappUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="block rounded-2xl bg-brand py-3 text-[14px] font-bold text-white"
+              className="block rounded-2xl border border-brand bg-brand-soft py-3 text-[14px] font-bold text-brand-dark"
             >
               Avisar al comercio por WhatsApp
             </a>
@@ -442,19 +685,6 @@ function OrderConfirmation({
           <p className="text-[11.5px] leading-relaxed text-muted">
             Esto es una prueba: el pedido quedó guardado en tu celular y
             todavía no le llega al comercio.
-          </p>
-        )}
-        {order.serverId ? (
-          <p className="text-[11.5px] font-semibold text-brand-dark">
-            ✅ El comercio ya ve tu pedido en su panel.
-          </p>
-        ) : syncError ? (
-          <p className="rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11.5px] font-semibold text-amber-800">
-            ⚠️ {syncError}
-          </p>
-        ) : (
-          <p className="text-[11.5px] text-muted">
-            Enviando tu pedido al panel del comercio…
           </p>
         )}
         <Link

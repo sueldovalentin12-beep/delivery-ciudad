@@ -17,7 +17,7 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait",
     lang: "es-AR",
     background_color: "#ffffff",
-    theme_color: "#56c232",
+    theme_color: "#24a840",
     categories: ["food", "shopping"],
     icons: [
       {

@@ -3,7 +3,7 @@ import { RepartidorClient } from "./repartidor-client";
 
 /** Pantalla interna del piloto: no se indexa en buscadores. */
 export const metadata: Metadata = {
-  title: "Panel del repartidor · Al Toque",
+  title: "Panel del repartidor",
   robots: { index: false, follow: false },
 };
 

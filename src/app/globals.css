@@ -7,9 +7,9 @@
   --foreground: #1e2a38;
   --muted: #8a9099;
   --border: #ecedef;
-  --brand: #56c232;
-  --brand-dark: #3f9a20;
-  --brand-soft: #edf9e7;
+  --brand: #24a840;
+  --brand-dark: #15803d;
+  --brand-soft: #e8f8ea;
 }
 
 @theme inline {
@@ -60,4 +60,379 @@ select {
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Navegación y transiciones entre pantallas                           */
+/* ------------------------------------------------------------------ */
+
+/* Reserva el lugar de la barra de scroll: la página no "salta" de ancho
+ * entre una pantalla que scrollea y otra que no (escritorio). */
+html {
+  scrollbar-gutter: stable;
+}
+
+/* Lo que vive en el layout (menú de abajo, encabezados) se queda quieto
+ * mientras el contenido de la pantalla se cruza. */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-group(bottom-nav),
+::view-transition-group(page-header) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(bottom-nav),
+::view-transition-old(page-header) {
+  display: none;
+}
+::view-transition-new(bottom-nav),
+::view-transition-new(page-header) {
+  animation: none;
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    translate: var(--page-shift, 18px) 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@keyframes page-out {
+  from {
+    opacity: 1;
+    translate: 0 0;
+  }
+  to {
+    opacity: 0;
+    translate: calc(var(--page-shift, 18px) * -0.6) 0;
+  }
+}
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+::view-transition-old(.page-forward) {
+  --page-shift: 18px;
+  animation: 140ms ease-in both page-out;
+}
+::view-transition-new(.page-forward) {
+  --page-shift: 18px;
+  animation: 200ms ease-out 60ms both page-in;
+}
+::view-transition-old(.page-back) {
+  --page-shift: -18px;
+  animation: 140ms ease-in both page-out;
+}
+::view-transition-new(.page-back) {
+  --page-shift: -18px;
+  animation: 200ms ease-out 60ms both page-in;
+}
+::view-transition-old(.page-fade) {
+  animation: 120ms ease-in both vt-fade-out;
+}
+::view-transition-new(.page-fade) {
+  animation: 200ms ease-out both vt-fade-in;
+}
+
+/* ------------------------------------------------------------------ */
+/* Micro-interacciones (solo transform y opacity: 60 fps)              */
+/* ------------------------------------------------------------------ */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.35);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes bump {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes flash {
+  0% {
+    transform: scale(1);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes step-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+@keyframes banner-in {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+  to {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+}
+@keyframes float-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@keyframes steam {
+  0% {
+    transform: translateY(4px) scaleY(0.6);
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-10px) scaleY(1);
+    opacity: 0;
+  }
+}
+@keyframes drive {
+  from {
+    transform: translateX(-90px);
+  }
+  to {
+    transform: translateX(90px);
+  }
+}
+@keyframes confetti {
+  0% {
+    transform: translateY(0) rotate(0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(70px) rotate(240deg);
+    opacity: 0;
+  }
+}
+@keyframes ring-pulse {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1.5px);
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes road {
+  to {
+    transform: translateX(-32px);
+  }
+}
+
+/* Aparece subiendo. Con --i en el estilo, las listas entran escalonadas (tope: 8). */
+.anim-fade-up {
+  animation: fade-up 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(min(var(--i, 0), 8) * 45ms);
+}
+.anim-fade-in {
+  animation: fade-in 0.3s ease-out both;
+}
+.anim-pop {
+  animation: pop 0.32s cubic-bezier(0.2, 0.8, 0.3, 1.4);
+}
+.anim-bump {
+  animation: bump 0.3s ease-out;
+}
+.anim-flash {
+  animation: flash 0.5s ease-out;
+}
+.anim-step-pulse {
+  animation: step-pulse 1.4s ease-in-out infinite;
+}
+.anim-banner-in {
+  animation: banner-in 0.4s ease-out both;
+}
+.anim-float {
+  animation: float-y 2.4s ease-in-out infinite;
+}
+
+/* Cargando: bloque gris con un brillo que lo recorre. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.75), transparent);
+  animation: shimmer 1.3s ease-in-out infinite;
+}
+
+/* Respuesta al toque en botones y links. Va en `base` para que cualquier
+ * clase de Tailwind (active:scale-*, transition) la pueda pisar. */
+@layer base {
+  button:not(:disabled),
+  a[href],
+  [role="button"] {
+    transition:
+      scale 0.12s ease,
+      opacity 0.12s ease,
+      background-color 0.15s ease,
+      color 0.15s ease,
+      border-color 0.15s ease;
+  }
+  button:not(:disabled):active,
+  a[href]:active,
+  [role="button"]:active {
+    scale: 0.97;
+    opacity: 0.88;
+  }
+}
+
+/* Marcadores del mapa de seguimiento (viven dentro de Leaflet, por eso son CSS global). */
+.moto-div-icon,
+.dest-div-icon {
+  background: none;
+  border: 0;
+}
+.moto-marker {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 3px 3px rgb(0 0 0 / 0.28));
+}
+.moto-marker .moto-ring {
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 44px;
+  height: 44px;
+  margin-left: -22px;
+  border-radius: 9999px;
+  background: var(--brand);
+  opacity: 0.4;
+  animation: ring-pulse 1.8s ease-out infinite;
+}
+.moto-marker .moto-flip {
+  position: absolute;
+  inset: 0;
+  transition: transform 0.25s ease;
+}
+.moto-marker .moto-flip.is-west {
+  transform: scaleX(-1);
+}
+.moto-marker .moto-bob {
+  position: absolute;
+  inset: 0;
+  animation: bob 0.9s ease-in-out infinite;
+}
+.dest-pin {
+  filter: drop-shadow(0 3px 3px rgb(0 0 0 / 0.3));
+  animation: fade-up 0.4s ease-out both;
+}
+
+/* Ruedas: giran solo cuando la moto se mueve. */
+.moto-spokes {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: spin 0.45s linear infinite;
+  animation-play-state: paused;
+}
+.is-moving .moto-spokes,
+.moto-marker.is-moving .moto-spokes {
+  animation-play-state: running;
+}
+
+/* Todo sin movimiento si la persona lo pidió en su celular. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
 }

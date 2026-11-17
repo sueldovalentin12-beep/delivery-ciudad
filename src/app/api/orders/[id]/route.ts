@@ -2,7 +2,8 @@ import { storageAvailable, getOrder, getCourierPosition } from "@/lib/server/sto
 
 /**
  * GET /api/orders/[id]: el cliente consulta el estado de su pedido
- * y la última ubicación del repartidor, si la está compartiendo.
+ * y la última ubicación del repartidor (solo mientras va en camino).
+ * No devuelve datos del cliente.
  */
 export async function GET(
   _request: Request,
@@ -15,15 +16,24 @@ export async function GET(
       { status: 503 },
     );
   }
-  const order = await getOrder(id);
-  if (!order) {
-    return Response.json({ error: "Pedido no encontrado" }, { status: 404 });
+  try {
+    const order = await getOrder(id);
+    if (!order) {
+      return Response.json({ error: "Pedido no encontrado" }, { status: 404 });
+    }
+    const position =
+      order.status === "en camino" ? await getCourierPosition(id) : null;
+    return Response.json({
+      id: order.id,
+      status: order.status,
+      updatedAt: order.updatedAt,
+      position,
+    });
+  } catch (error) {
+    console.error("No se pudo leer el pedido", error);
+    return Response.json(
+      { error: "No se pudo consultar el pedido. Probá de nuevo." },
+      { status: 500 },
+    );
   }
-  const position = await getCourierPosition(id);
-  return Response.json({
-    id: order.id,
-    status: order.status,
-    updatedAt: order.updatedAt,
-    position: position,
-  });
 }

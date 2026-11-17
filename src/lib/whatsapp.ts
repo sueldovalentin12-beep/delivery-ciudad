@@ -7,11 +7,11 @@ import type { Order } from "@/lib/orders";
  * Aviso del pedido por WhatsApp.
  * El cliente confirma en la app, y se le abre WhatsApp con el pedido
  * ya escrito, dirigido al número del comercio: solo tiene que apretar enviar.
- * Es la etapa piloto; en la Etapa 4 el pedido viaja directo a la base de datos.
+ * Es el plan B: el pedido también viaja directo al panel del comercio.
  */
 
 export function buildOrderMessage(order: Order): string {
-  // Agrupa los platos por comercio (el carrito puede tener más de uno).
+  // Agrupa los platos por comercio (los pedidos viejos podían tener más de uno).
   const byMerchant = new Map<string, string[]>();
   for (const item of order.items) {
     const line = `${item.qty} × ${item.name} — ${formatPrice(item.price * item.qty)}`;
@@ -37,6 +37,19 @@ export function buildOrderMessage(order: Order): string {
     lines.push("", `📍 *Entrega:* ${addressLabel(order.address)}`);
     const url = mapsUrl(order.address);
     if (url) lines.push(url);
+  }
+
+  if (order.customerName || order.customerPhone) {
+    lines.push(
+      "",
+      `👤 *Cliente:* ${[order.customerName, order.customerPhone].filter(Boolean).join(" · ")}`,
+    );
+  }
+  if (order.notes) lines.push(`📝 *Aclaraciones:* ${order.notes}`);
+  if (order.payment) {
+    lines.push(
+      `💵 *Pago:* ${order.payment === "transferencia" ? "Transferencia" : "Efectivo al recibir"}`,
+    );
   }
 
   lines.push(

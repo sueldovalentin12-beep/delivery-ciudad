@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { CartIcon } from "@/components/icons";
 import { useCart } from "@/lib/cart";
+import { useBump } from "@/lib/use-bump";
 
 /** Ícono de carrito del encabezado, con la cantidad de productos encima. */
 export function CartBadge() {
-  const { count } = useCart();
+  const { count, ready } = useCart();
+  const bump = useBump(ready ? count : null);
 
   return (
     <Link
@@ -18,7 +20,12 @@ export function CartBadge() {
     >
       <CartIcon />
       {count > 0 ? (
-        <span className="absolute -right-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-brand px-1 text-[10px] font-bold leading-none text-white">
+        <span
+          key={bump}
+          className={`absolute -right-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-brand px-1 text-[10px] font-bold leading-none text-white ${
+            bump > 0 ? "anim-pop" : ""
+          }`}
+        >
           {count > 99 ? "99+" : count}
         </span>
       ) : null}

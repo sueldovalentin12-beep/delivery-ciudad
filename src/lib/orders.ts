@@ -1,7 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import type { DeliveryAddress } from "@/lib/address";
 import type { CartItem } from "@/lib/cart";
+import { readStored, useStored, writeStored } from "@/lib/local-store";
 import type { OrderStatus } from "@/lib/order-status";
 
 /**
@@ -9,6 +11,8 @@ import type { OrderStatus } from "@/lib/order-status";
  * La copia principal vive en la base de datos; esta es la copia del celular
  * del cliente, para su historial y seguimiento.
  */
+
+export type PaymentMethod = "efectivo" | "transferencia";
 
 export type Order = {
   id: string;
@@ -22,14 +26,22 @@ export type Order = {
   serverId?: string;
   /** Estado actual del pedido (se actualiza preguntando al servidor). */
   status?: OrderStatus;
+  // Los campos de abajo son opcionales para poder leer pedidos viejos.
+  customerName?: string;
+  customerPhone?: string;
+  notes?: string;
+  payment?: PaymentMethod;
+  merchantSlug?: string;
+  merchantName?: string;
+  /** El servidor rechazó el pedido: ya no se reintenta el envío. */
+  syncFailed?: boolean;
 };
 
 const STORAGE_KEY = "altoque.orders.v1";
 
-export function readOrders(): Order[] {
+function parseOrders(raw: string | null): Order[] {
+  if (!raw) return [];
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
@@ -44,8 +56,19 @@ export function readOrders(): Order[] {
   }
 }
 
+export function readOrders(): Order[] {
+  return parseOrders(readStored(STORAGE_KEY));
+}
+
+/** Los pedidos guardados. `null` hasta que la pantalla terminó de hidratar. */
+export function useOrders(): Order[] | null {
+  const raw = useStored(STORAGE_KEY);
+  return useMemo(() => (raw === undefined ? null : parseOrders(raw)), [raw]);
+}
+
 /** Genera un número de pedido único (no se repite entre pedidos viejos). */
-function generateOrderId(existing: Order[]): string {
+export function newOrderId(): string {
+  const existing = readOrders();
   // Fecha en base 36 + sufijo al azar: prácticamente imposible que se repita.
   let id = "";
   do {
@@ -57,43 +80,30 @@ function generateOrderId(existing: Order[]): string {
   return id;
 }
 
-/** Guarda el pedido y devuelve el número de pedido generado. */
-export function saveOrder(order: Omit<Order, "id" | "createdAt">): Order {
+/** Guarda el pedido (con el número ya generado) y lo devuelve. */
+export function saveOrder(
+  order: Omit<Order, "id" | "createdAt"> & { id?: string },
+): Order {
   const previous = readOrders();
   const full: Order = {
     ...order,
-    id: generateOrderId(previous),
+    id: order.id ?? newOrderId(),
     createdAt: Date.now(),
   };
-
-  try {
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify([full, ...previous].slice(0, 20)),
-    );
-  } catch {
-    // Si no se puede guardar, igual mostramos la confirmación.
-  }
-
+  writeStored(STORAGE_KEY, JSON.stringify([full, ...previous].slice(0, 20)));
   return full;
 }
 
-/** Actualiza el pedido guardado en el celular y devuelve la lista nueva. */
 function updateOrder(id: string, patch: Partial<Order>): void {
-  try {
-    const orders = readOrders();
-    const next = orders.map((order) =>
-      order.id === id ? { ...order, ...patch } : order,
-    );
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  } catch {
-    // Sin espacio: el cambio vive solo en memoria.
-  }
+  const next = readOrders().map((order) =>
+    order.id === id ? { ...order, ...patch } : order,
+  );
+  writeStored(STORAGE_KEY, JSON.stringify(next));
 }
 
 /** Anota que el pedido quedó guardado en el servidor. */
 export function markOrderServer(id: string, serverId: string): void {
-  updateOrder(id, { serverId });
+  updateOrder(id, { serverId, syncFailed: undefined });
 }
 
 /** Anota el estado del pedido (Recibido, En camino, Entregado…). */
@@ -101,11 +111,12 @@ export function markOrderStatus(id: string, status: OrderStatus): void {
   updateOrder(id, { status });
 }
 
+/** Anota que el servidor rechazó el pedido, para no reintentarlo más. */
+export function markOrderSyncFailed(id: string): void {
+  updateOrder(id, { syncFailed: true });
+}
+
 /** Borra todo el historial de pedidos guardado en el celular. */
 export function clearOrders(): void {
-  try {
-    window.localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Nada que limpiar.
-  }
+  writeStored(STORAGE_KEY, null);
 }

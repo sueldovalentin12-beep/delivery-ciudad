@@ -1,7 +1,7 @@
 /**
  * Dirección de entrega.
  * Vive en el celular del cliente (localStorage) para no pedirla en cada
- * pedido. Etapa 4: viaja con el pedido a la base de datos.
+ * pedido; al confirmar viaja con el pedido a la base de datos.
  */
 
 export type DeliveryAddress = {
