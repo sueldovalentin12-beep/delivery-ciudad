@@ -1,4 +1,4 @@
-import { STATUS_LABEL, type OrderStatus } from "@/lib/order-status";
+import { CUSTOMER_STATUS_LABEL, type OrderStatus } from "@/lib/order-status";
 
 export const ORDER_STEPS: OrderStatus[] = [
   "recibido",
@@ -17,7 +17,7 @@ export function OrderProgress({ status }: { status: OrderStatus }) {
   return (
     <ol
       className="flex gap-1.5"
-      aria-label={`Progreso del pedido: ${STATUS_LABEL[status]}`}
+      aria-label={`Progreso del pedido: ${CUSTOMER_STATUS_LABEL[status]}`}
     >
       {ORDER_STEPS.map((step, index) => {
         const done = index <= stepIndex;
@@ -37,7 +37,7 @@ export function OrderProgress({ status }: { status: OrderStatus }) {
                 index === stepIndex ? "font-bold text-foreground" : "text-muted"
               }`}
             >
-              {STATUS_LABEL[step]}
+              {CUSTOMER_STATUS_LABEL[step]}
             </span>
           </li>
         );

@@ -16,6 +16,19 @@ export const STATUS_LABEL: Record<OrderStatus, string> = {
   cancelado: "Cancelado",
 };
 
+/**
+ * Cómo se llama cada estado para el CLIENTE.
+ * El primero no dice "Recibido" a propósito: se entendía como "ya te lo
+ * entregaron". Para el cliente, el pedido recién está "Enviado" al comercio.
+ */
+export const CUSTOMER_STATUS_LABEL: Record<OrderStatus, string> = {
+  recibido: "Enviado",
+  preparando: "En preparación",
+  "en camino": "En camino",
+  entregado: "Entregado",
+  cancelado: "Cancelado",
+};
+
 export function isOrderStatus(value: unknown): value is OrderStatus {
   return (
     typeof value === "string" &&

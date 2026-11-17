@@ -23,8 +23,8 @@ const STALE_MS = 2 * 60 * 1000;
 
 const HEADLINE: Record<OrderStatus, { title: string; line: string }> = {
   recibido: {
-    title: "Pedido recibido",
-    line: "El comercio ya vio tu pedido. En un ratito lo empiezan a preparar.",
+    title: "Pedido enviado al comercio",
+    line: "Estamos esperando que lo confirmen. Apenas empiecen a prepararlo lo vas a ver acá.",
   },
   preparando: {
     title: "Preparando tu pedido",

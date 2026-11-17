@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { MotoIcon } from "@/components/moto-icon";
 import { useOrders } from "@/lib/orders";
-import { isFinalStatus, STATUS_LABEL } from "@/lib/order-status";
+import { isFinalStatus } from "@/lib/order-status";
 import { useOrderSync } from "@/lib/order-sync";
 import { useBump } from "@/lib/use-bump";
 
@@ -29,9 +29,14 @@ export function ActiveOrderBanner() {
   if (!order) return null;
 
   const onTheWay = order.serverId && status === "en camino";
-  const label = order.serverId
-    ? STATUS_LABEL[status].toLowerCase()
-    : "enviándose al comercio";
+  // Frases completas (no "está + estado"), para que se lean naturales.
+  const text = !order.serverId
+    ? "Enviando tu pedido al comercio"
+    : status === "recibido"
+      ? "Tu pedido fue enviado al comercio"
+      : status === "preparando"
+        ? "Están preparando tu pedido"
+        : "Tu pedido va en camino";
 
   return (
     <div className="anim-banner-in grid px-4 pt-1" style={{ gridTemplateRows: "1fr" }}>
@@ -52,7 +57,7 @@ export function ActiveOrderBanner() {
           </span>
           <span className="min-w-0 flex-1 text-[13px] font-semibold text-brand-dark">
             <span key={bump} className={bump > 0 ? "anim-flash inline-block" : ""}>
-              Tu pedido está {label}
+              {text}
             </span>
           </span>
           <span className="shrink-0 text-[12px] font-bold text-brand-dark">

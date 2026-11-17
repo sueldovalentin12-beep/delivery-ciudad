@@ -7,7 +7,7 @@ import { ReorderButton } from "@/components/reorder-button";
 import { addressLabel } from "@/lib/address";
 import { formatPrice } from "@/lib/demo-data";
 import { useOrders, type Order } from "@/lib/orders";
-import { STATUS_LABEL, isFinalStatus, type OrderStatus } from "@/lib/order-status";
+import { CUSTOMER_STATUS_LABEL, isFinalStatus, type OrderStatus } from "@/lib/order-status";
 import { useOrderSync } from "@/lib/order-sync";
 import { useBump } from "@/lib/use-bump";
 import { merchantWhatsAppUrl } from "@/lib/whatsapp";
@@ -89,11 +89,11 @@ function OrderCard({ order, index }: { order: Order; index: number }) {
           </span>
         ) : cancelled ? (
           <span key={bump} className={`${pillClass} bg-red-50 text-red-700`}>
-            {STATUS_LABEL[status]}
+            {CUSTOMER_STATUS_LABEL[status]}
           </span>
         ) : (
           <span key={bump} className={`${pillClass} bg-brand-soft text-brand-dark`}>
-            {STATUS_LABEL[status]}
+            {CUSTOMER_STATUS_LABEL[status]}
           </span>
         )}
       </div>
@@ -173,7 +173,7 @@ function OrderCard({ order, index }: { order: Order; index: number }) {
 }
 
 const PROGRESS_TEXT: Record<OrderStatus, string> = {
-  recibido: "Le llegó al comercio.",
+  recibido: "Esperando que el comercio lo confirme.",
   preparando: "Lo están preparando.",
   "en camino": "Va en camino.",
   entregado: "Entregado. ¡Que lo disfrutes!",
