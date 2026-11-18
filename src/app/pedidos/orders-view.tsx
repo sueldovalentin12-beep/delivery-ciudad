@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
+import { MotoIcon } from "@/components/moto-icon";
 import { OrderProgress } from "@/components/order-progress";
 import { ReorderButton } from "@/components/reorder-button";
 import { addressLabel } from "@/lib/address";
@@ -34,16 +35,12 @@ export function OrdersView() {
     return (
       <div className="anim-fade-in min-h-[60dvh]">
         <EmptyState
-          emoji="🧾"
+          illustration={<MotoIcon className="h-16 w-auto" />}
           title="Todavía no hiciste pedidos"
           description="Cuando confirmes uno, acá vas a poder ver su estado."
+          ctaHref="/comercios"
+          ctaLabel="Hacer un pedido"
         />
-        <Link
-          href="/comercios"
-          className="mx-auto mt-2 block w-fit rounded-full bg-brand px-5 py-2.5 text-[13px] font-semibold text-white"
-        >
-          Ver comercios
-        </Link>
       </div>
     );
   }
@@ -63,13 +60,13 @@ function OrderCard({ order, index }: { order: Order; index: number }) {
   const cancelled = sent && status === "cancelado";
   const whatsappUrl = order.syncFailed ? merchantWhatsAppUrl(order) : null;
   const bump = useBump(sent ? status : null);
-  const pillClass = `rounded-full px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide ${
+  const pillClass = `shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wide ${
     bump > 0 ? "anim-flash" : ""
   }`;
 
   return (
     <li
-      className="anim-fade-up relative rounded-2xl border border-line p-3.5"
+      className="anim-fade-up relative rounded-2xl border border-line bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
       style={{ "--i": index } as React.CSSProperties}
     >
       {/* Toda la tarjeta lleva al seguimiento; el botón de WhatsApp va por encima. */}
@@ -79,10 +76,15 @@ function OrderCard({ order, index }: { order: Order; index: number }) {
         className="absolute inset-0 rounded-2xl"
       />
 
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-[13.5px] font-bold text-foreground">
-          {order.id}
-        </span>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-[15px] font-extrabold text-foreground">
+            {order.merchantName || "Tu pedido"}
+          </p>
+          <p className="mt-0.5 text-[11.5px] text-muted">
+            {order.id} · {formatDate(order.createdAt)}
+          </p>
+        </div>
         {!sent ? (
           <span className={`${pillClass} bg-surface text-muted`}>
             Sin confirmar
@@ -97,12 +99,8 @@ function OrderCard({ order, index }: { order: Order; index: number }) {
           </span>
         )}
       </div>
-      <p className="mt-0.5 text-[11.5px] text-muted">
-        {order.merchantName ? `${order.merchantName} · ` : ""}
-        {formatDate(order.createdAt)}
-      </p>
       {order.address ? (
-        <p className="mt-1 text-[12px] text-muted">
+        <p className="mt-2 text-[12px] text-muted">
           📍 {addressLabel(order.address)}
         </p>
       ) : null}
@@ -157,7 +155,7 @@ function OrderCard({ order, index }: { order: Order; index: number }) {
           <OrderProgress status={status} />
           <p className="flex items-center justify-between text-[12px] text-muted">
             <span>{PROGRESS_TEXT[status]}</span>
-            <span className="shrink-0 pl-2 font-semibold text-brand-dark">
+            <span className="shrink-0 rounded-full bg-brand-soft px-3 py-1 text-[12.5px] font-bold text-brand-dark">
               Seguir →
             </span>
           </p>

@@ -52,7 +52,7 @@ export default function MerchantPage({ params }: PageProps<"/comercio/[slug]">) 
 function MerchantSkeleton() {
   return (
     <div className="mx-auto min-h-dvh w-full max-w-md bg-white pb-36" aria-hidden>
-      <div className="skeleton h-52" />
+      <div className="skeleton h-64" />
       <div className="relative z-10 -mt-5 space-y-3 rounded-t-3xl bg-white px-4 pt-4">
         <div className="skeleton h-6 w-2/3 rounded-md" />
         <div className="skeleton h-3.5 w-1/3 rounded-md" />
@@ -85,7 +85,7 @@ async function MerchantContent({ params }: { params: Promise<{ slug: string }> }
 
   return (
     <div className="mx-auto min-h-dvh w-full max-w-md bg-white pb-36">
-      <div className="relative h-52 overflow-hidden bg-surface">
+      <div className="relative h-64 overflow-hidden bg-surface">
         <Photo
           src={merchant.photo}
           emoji={merchant.emoji}
@@ -97,6 +97,8 @@ async function MerchantContent({ params }: { params: Promise<{ slug: string }> }
         />
         {/* Degradé de arriba: el botón de volver se lee sobre cualquier foto. */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/50 to-transparent" />
+        {/* Degradé de abajo: la portada se funde con la hoja blanca. */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white via-white/60 to-transparent" />
         <Link
           href="/"
           transitionTypes={["nav-back"]}
@@ -115,9 +117,9 @@ async function MerchantContent({ params }: { params: Promise<{ slug: string }> }
         </h1>
         <p className="mt-0.5 text-[12.5px] text-muted">{merchant.category}</p>
 
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11.5px] text-muted">
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px]">
           {merchant.rating !== undefined ? (
-            <span className="flex items-center gap-1 font-semibold text-brand-dark">
+            <span className="flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-1.5 font-semibold text-brand-dark">
               <StarIcon />
               {merchant.rating.toFixed(1)}
               {merchant.reviews !== undefined ? (
@@ -125,19 +127,21 @@ async function MerchantContent({ params }: { params: Promise<{ slug: string }> }
               ) : null}
             </span>
           ) : (
-            <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10.5px] font-bold text-brand-dark">
+            <span className="rounded-full bg-brand-soft px-2.5 py-1.5 text-[11px] font-bold text-brand-dark">
               Nuevo
             </span>
           )}
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1 rounded-full bg-surface px-2.5 py-1.5 font-medium text-foreground">
             <ClockIcon />
             {merchant.deliveryMinutes} min
           </span>
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1 rounded-full bg-surface px-2.5 py-1.5 font-medium text-foreground">
             <ScooterIcon />
             Envío {merchant.deliveryFee}
           </span>
-          <span>Mínimo {merchant.minOrder}</span>
+          <span className="rounded-full bg-surface px-2.5 py-1.5 font-medium text-foreground">
+            Mínimo {merchant.minOrder}
+          </span>
         </div>
 
         <ClosedNotice merchant={merchant} />
@@ -147,7 +151,7 @@ async function MerchantContent({ params }: { params: Promise<{ slug: string }> }
       <div className="mt-5 space-y-6">
         {featured.length > 0 ? (
           <section>
-            <h2 className="px-4 text-[14px] font-bold tracking-tight text-foreground">
+            <h2 className="px-4 text-[16px] font-extrabold tracking-tight text-foreground">
               Los más pedidos
             </h2>
             <ul className="no-scrollbar mt-2.5 flex gap-3 overflow-x-auto px-4 pb-1">
@@ -162,10 +166,10 @@ async function MerchantContent({ params }: { params: Promise<{ slug: string }> }
 
         {merchant.menu.map((section) => (
           <section key={section.id}>
-            <h2 className="px-4 text-[14px] font-bold tracking-tight text-foreground">
+            <h2 className="mx-4 border-b-2 border-brand/15 pb-1.5 text-[16px] font-extrabold tracking-tight text-foreground">
               {section.name}
             </h2>
-            <ul className="mt-2 divide-y divide-line border-y border-line">
+            <ul className="divide-y divide-line">
               {section.items.map((item) => (
                 <li key={item.id} className="flex items-center gap-3 px-4 py-3">
                   <span className="relative h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-xl bg-surface">
@@ -223,13 +227,13 @@ function AddButton({ merchant, item }: { merchant: Merchant; item: MenuItem }) {
 function FeaturedCard({ merchant, item }: { merchant: Merchant; item: MenuItem }) {
   const { final, original, percent } = itemPrice(item);
   return (
-    <div className="w-40 shrink-0">
+    <div className="w-44 shrink-0">
       <div className="relative aspect-square overflow-hidden rounded-2xl bg-surface">
         <Photo
           src={item.photo}
           emoji={item.emoji}
           gradient={merchant.gradient}
-          sizes="160px"
+          sizes="176px"
           emojiClassName="text-5xl"
         />
         {percent > 0 ? (

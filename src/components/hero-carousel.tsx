@@ -80,7 +80,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
             className="w-full shrink-0 snap-center px-4"
           >
             <div
-              className={`relative flex h-40 items-end overflow-hidden rounded-2xl bg-gradient-to-br ${slide.gradient}`}
+              className={`relative flex h-48 items-end overflow-hidden rounded-3xl bg-gradient-to-br ${slide.gradient}`}
             >
               {slide.photo ? (
                 <>
@@ -115,7 +115,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
                 </>
               )}
               <div className="relative z-10 p-4">
-                <p className="text-[17px] font-bold leading-tight text-white drop-shadow">
+                <p className="text-[20px] font-extrabold leading-tight text-white drop-shadow">
                   {slide.title}
                 </p>
                 <p className="mt-0.5 text-[12px] font-medium text-white/90 drop-shadow-sm">

@@ -10,12 +10,12 @@ export function SectionHeader({
   action?: string;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 px-4">
-      <h2 className="text-[15px] font-bold tracking-tight text-foreground">{title}</h2>
+    <div className="flex items-center justify-between gap-3 px-4">
+      <h2 className="text-[18px] font-extrabold tracking-tight text-foreground">{title}</h2>
       {href ? (
         <Link
           href={href}
-          className="rounded-full bg-brand-soft px-2.5 py-1 text-[11px] font-semibold text-brand-dark"
+          className="rounded-full bg-brand-soft px-3 py-1.5 text-[12px] font-semibold text-brand-dark"
         >
           {action}
         </Link>

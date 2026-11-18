@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { EmptyState } from "@/components/empty-state";
+import { BagIllustration, EmptyState } from "@/components/empty-state";
 import { Photo } from "@/components/photo";
 import { QtyStepper } from "@/components/qty-stepper";
 import { useCart } from "@/lib/cart";
@@ -62,16 +62,12 @@ export function CartView() {
     return (
       <div className="anim-fade-in">
         <EmptyState
-          emoji="🛒"
+          illustration={<BagIllustration />}
           title="Tu carrito está vacío"
           description="Elegí un comercio y tocá el + de lo que quieras pedir."
+          ctaHref="/comercios"
+          ctaLabel="Ver comercios"
         />
-        <Link
-          href="/comercios"
-          className="mx-auto mt-2 block w-fit rounded-full bg-brand px-5 py-2.5 text-[13px] font-semibold text-white"
-        >
-          Ver comercios
-        </Link>
       </div>
     );
   }

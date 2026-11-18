@@ -6,17 +6,17 @@ export function CategoryTile({ category }: { category: Category }) {
   return (
     <Link
       href={`/buscar?categoria=${category.id}`}
-      className="block w-[5.25rem] shrink-0 text-center"
+      className="tile-press block w-[5.5rem] shrink-0 text-center"
     >
-      <div className="relative aspect-square overflow-hidden rounded-2xl bg-surface">
+      <div className="relative aspect-square overflow-hidden rounded-3xl bg-surface">
         <Photo
           src={category.photo}
           emoji={category.emoji}
           gradient={category.gradient}
-          sizes="84px"
+          sizes="88px"
         />
       </div>
-      <span className="mt-1.5 block truncate text-[11.5px] font-medium text-foreground">
+      <span className="mt-1.5 block truncate text-[12px] font-semibold text-foreground">
         {category.label}
       </span>
     </Link>

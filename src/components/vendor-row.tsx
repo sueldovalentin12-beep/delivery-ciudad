@@ -15,22 +15,22 @@ export function VendorRow({ merchant }: { merchant: Merchant }) {
   return (
     <Link
       href={`/comercio/${merchant.slug}`}
-      className={`flex items-center gap-3 rounded-2xl border border-line bg-white p-2.5 transition hover:border-brand/40 ${
+      className={`flex items-center gap-3 rounded-2xl border border-line bg-white p-2.5 transition-[border-color,transform] duration-200 hover:border-brand/40 motion-safe:active:scale-[0.985] ${
         closed ? "opacity-70" : ""
       }`}
     >
-      <span className="relative h-16 w-[5.5rem] shrink-0 overflow-hidden rounded-xl bg-surface">
+      <span className="relative h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-xl bg-surface">
         <Photo
           src={merchant.photo}
           emoji={merchant.emoji}
           gradient={merchant.gradient}
-          sizes="96px"
+          sizes="72px"
           emojiClassName="text-2xl"
         />
         <ClosedChip merchant={merchant} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13.5px] font-semibold text-foreground">
+        <span className="block truncate text-[14px] font-bold text-foreground">
           {merchant.name}
         </span>
         <span className="block truncate text-[11.5px] text-muted">{merchant.category}</span>

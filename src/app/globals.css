@@ -436,3 +436,23 @@ html {
     animation-delay: 0s !important;
   }
 }
+
+/* Inicio: cabecera verde con buscador y menú de abajo. */
+.home-header {
+  border-bottom-left-radius: 1.75rem;
+  border-bottom-right-radius: 1.75rem;
+}
+.tile-press {
+  transition: transform 0.15s ease-out;
+}
+.tile-press:active {
+  transform: scale(0.97);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tile-press {
+    transition: none;
+  }
+  .tile-press:active {
+    transform: none;
+  }
+}

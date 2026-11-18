@@ -26,8 +26,8 @@ export function QtyStepper({
 
   return (
     <div
-      className={`flex h-9 shrink-0 items-center justify-end overflow-hidden rounded-full bg-brand-soft p-1 transition-[width] duration-300 ease-out ${
-        open ? "w-[5.25rem]" : "w-9"
+      className={`flex h-9 shrink-0 items-center justify-end overflow-hidden rounded-full p-1 shadow-sm transition-[width,background-color] duration-300 ease-out ${
+        open ? "w-[5.25rem] bg-brand-soft" : "w-9 bg-brand"
       }`}
     >
       <button
@@ -57,8 +57,8 @@ export function QtyStepper({
         onClick={onIncrement}
         disabled={disableAdd}
         aria-label={open ? `Agregar otro ${itemName}` : `Agregar ${itemName} al carrito`}
-        className={`grid shrink-0 place-items-center rounded-full text-brand-dark transition-[background-color,scale,opacity] duration-300 disabled:opacity-35 ${
-          open ? "h-7 w-7 bg-white" : "h-7 w-7 bg-transparent"
+        className={`grid shrink-0 place-items-center rounded-full transition-[background-color,scale,opacity] duration-300 disabled:opacity-35 motion-safe:active:scale-90 ${
+          open ? "h-7 w-7 bg-white text-brand-dark" : "h-7 w-7 bg-transparent text-white"
         }`}
       >
         <PlusIcon className={open ? "h-3.5 w-3.5" : "h-4 w-4"} />

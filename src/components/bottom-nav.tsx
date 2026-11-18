@@ -3,14 +3,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { HomeIcon, ReceiptIcon, SearchIcon, StoreIcon, UserIcon } from "@/components/icons";
+import {
+  HomeFilledIcon,
+  HomeIcon,
+  ReceiptFilledIcon,
+  ReceiptIcon,
+  StoreFilledIcon,
+  StoreIcon,
+  UserFilledIcon,
+  UserIcon,
+} from "@/components/icons";
 
 const items = [
-  { href: "/", label: "Inicio", icon: HomeIcon },
-  { href: "/comercios", label: "Comercios", icon: StoreIcon },
-  { href: "/buscar", label: "Buscar", icon: SearchIcon },
-  { href: "/pedidos", label: "Pedidos", icon: ReceiptIcon },
-  { href: "/perfil", label: "Perfil", icon: UserIcon },
+  { href: "/", label: "Inicio", icon: HomeIcon, filled: HomeFilledIcon },
+  { href: "/comercios", label: "Comercios", icon: StoreIcon, filled: StoreFilledIcon },
+  { href: "/pedidos", label: "Pedidos", icon: ReceiptIcon, filled: ReceiptFilledIcon },
+  { href: "/perfil", label: "Mi perfil", icon: UserIcon, filled: UserFilledIcon },
 ];
 
 function isActive(href: string, pathname: string) {
@@ -46,7 +54,7 @@ export function BottomNav() {
       <ul className="relative mx-auto flex h-[60px] w-full max-w-md items-stretch">
         <li
           aria-hidden
-          className={`pointer-events-none absolute left-0 top-0 h-[3px] w-1/5 transition-[transform,opacity] duration-300 ease-out ${
+          className={`pointer-events-none absolute left-0 top-0 h-[3px] w-1/4 transition-[transform,opacity] duration-300 ease-out ${
             activeIndex === -1 ? "opacity-0" : "opacity-100"
           }`}
           style={{ transform: `translateX(${lastIndex * 100}%)` }}
@@ -55,15 +63,15 @@ export function BottomNav() {
         </li>
         {items.map((item) => {
           const active = isActive(item.href, pathname);
-          const Icon = item.icon;
+          const Icon = active ? item.filled : item.icon;
 
           return (
             <li key={item.href} className="flex-1">
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
-                  active ? "text-brand" : "text-muted hover:text-foreground"
+                className={`flex flex-col items-center gap-1 py-2.5 text-[11px] transition-colors ${
+                  active ? "font-bold text-brand" : "font-medium text-muted hover:text-foreground"
                 }`}
               >
                 <span
@@ -71,7 +79,7 @@ export function BottomNav() {
                     active ? "-translate-y-px scale-110" : ""
                   }`}
                 >
-                  <Icon />
+                  <Icon className="h-6 w-6" />
                 </span>
                 {item.label}
               </Link>

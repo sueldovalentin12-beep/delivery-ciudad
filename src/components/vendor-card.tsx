@@ -33,7 +33,7 @@ export function VendorCard({ merchant }: { merchant: Merchant }) {
   return (
     <Link
       href={`/comercio/${merchant.slug}`}
-      className={`block w-[15rem] shrink-0 transition-opacity duration-300 ${
+      className={`block w-[15rem] shrink-0 transition-[opacity,transform] duration-200 motion-safe:active:scale-[0.97] ${
         closed ? "opacity-70" : ""
       }`}
     >
@@ -47,19 +47,31 @@ export function VendorCard({ merchant }: { merchant: Merchant }) {
         />
         <ClosedChip merchant={merchant} />
 
+        {merchant.rating === undefined && !closed ? (
+          <span className="absolute left-2 top-2 rounded-full bg-white/95 px-2 py-1 text-[10px] font-bold text-brand-dark shadow-sm">
+            Nuevo
+          </span>
+        ) : null}
+
         {promo ? (
-          <span className="absolute bottom-2 left-2 rounded-full bg-white/95 px-2 py-1 text-[10px] font-bold text-brand-dark shadow-sm">
+          <span className="absolute bottom-2 left-2 rounded-full bg-brand px-2.5 py-1 text-[10px] font-bold text-white shadow-sm">
             {promo}
           </span>
         ) : null}
       </div>
 
       <div className="mt-2 space-y-0.5">
-        <h3 className="truncate text-[13.5px] font-semibold text-foreground">
-          {merchant.name}
-        </h3>
-        <p className="truncate text-[11.5px] text-muted">{merchant.category}</p>
-        <div className="flex items-center gap-2 pt-0.5 text-[11px] text-muted">
+        <h3 className="truncate text-[14px] font-bold text-foreground">{merchant.name}</h3>
+        <div className="flex items-center gap-1.5 text-[11.5px] text-muted">
+          {merchant.rating !== undefined ? (
+            <>
+              <RatingOrNew merchant={merchant} />
+              <span aria-hidden>·</span>
+            </>
+          ) : null}
+          <span className="truncate">{merchant.category}</span>
+        </div>
+        <div className="flex items-center gap-2 pt-0.5 text-[11.5px] text-muted">
           <span className="flex items-center gap-1">
             <ClockIcon />
             {merchant.deliveryMinutes} min
@@ -68,7 +80,6 @@ export function VendorCard({ merchant }: { merchant: Merchant }) {
             <ScooterIcon />
             {merchant.deliveryFee}
           </span>
-          <RatingOrNew merchant={merchant} />
         </div>
         <OpenLabel merchant={merchant} />
       </div>

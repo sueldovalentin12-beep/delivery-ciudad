@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ActiveOrderBanner } from "@/components/active-order-banner";
-import { CartBadge } from "@/components/cart-badge";
+import { AddressSelector, CartBadge } from "@/components/cart-badge";
+import { Photo } from "@/components/photo";
 import { CategoryTile } from "@/components/category-tile";
 import { PageTransition } from "@/components/page-transition";
 import { HeroCarousel } from "@/components/hero-carousel";
@@ -20,6 +21,7 @@ import {
 
 /** El envío más barato del catálogo, para el "desde" del pie. */
 const minDeliveryFee = Math.min(...merchants.map((m) => m.deliveryFeeValue));
+const burgerCategory = categories.find((c) => c.id === "hamburguesas");
 
 export default function Home() {
   return (
@@ -27,31 +29,58 @@ export default function Home() {
     <div className="mx-auto min-h-dvh w-full max-w-md bg-white pb-20">
       <header
         style={{ viewTransitionName: "page-header" }}
-        className="sticky top-0 z-20 bg-white/95 pt-[env(safe-area-inset-top)] backdrop-blur">
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <Logo />
-
-          <CartBadge />
+        className="home-header bg-brand px-4 pb-5 pt-[calc(env(safe-area-inset-top)+0.75rem)]"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <AddressSelector city={appConfig.city} />
+          <CartBadge onBrand />
         </div>
+
+        {/* Parece un campo de texto, pero es un link: la búsqueda de verdad vive en /buscar. */}
+        <Link
+          href="/buscar"
+          className="mt-4 flex items-center gap-2.5 rounded-full bg-white px-4 py-3.5 text-[14px] text-muted shadow-sm"
+        >
+          <SearchIcon className="h-5 w-5 shrink-0 text-brand-dark" />
+          Locales, platos y productos
+        </Link>
       </header>
 
       <ActiveOrderBanner />
 
-      <main className="space-y-6 pt-1">
-        {/* Parece un campo de texto, pero es un link: la búsqueda de verdad vive en /buscar. */}
-        <div className="px-4">
-          <Link
-            href="/buscar"
-            className="flex items-center gap-2.5 rounded-2xl border border-line bg-surface px-3.5 py-3 text-[14px] text-muted"
-          >
-            <SearchIcon className="h-4.5 w-4.5 shrink-0" />
-            ¿Qué querés comer hoy?
-          </Link>
-        </div>
-
+      <main className="space-y-7 pt-4">
         <HeroCarousel slides={heroSlides} />
 
-        <section className="-mx-0">
+        <section className="grid grid-cols-2 gap-3 px-4">
+          <Link
+            href="/comercios"
+            className="tile-press relative block h-36 overflow-hidden rounded-3xl bg-surface"
+          >
+            <Photo
+              src={burgerCategory?.photo}
+              emoji="🍔"
+              gradient="from-rose-100 to-red-200"
+              sizes="208px"
+            />
+            <span className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+            <span className="absolute inset-x-0 bottom-0 p-3.5 text-[17px] font-extrabold text-white drop-shadow">
+              Restaurantes
+            </span>
+          </Link>
+          <Link
+            href="/buscar"
+            className="tile-press relative block h-36 overflow-hidden rounded-3xl bg-gradient-to-br from-brand to-brand-dark"
+          >
+            <span className="absolute -right-2 -top-1 text-[5.5rem] leading-none opacity-90" aria-hidden>
+              🏷️
+            </span>
+            <span className="absolute inset-x-0 bottom-0 p-3.5 text-[17px] font-extrabold text-white drop-shadow">
+              Promociones
+            </span>
+          </Link>
+        </section>
+
+        <section>
           <SectionHeader title="¿Qué se te antoja?" />
           <ul className="no-scrollbar mt-3 flex gap-3 overflow-x-auto px-4">
             {categories.map((category) => (
